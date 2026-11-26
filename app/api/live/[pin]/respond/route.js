@@ -1,11 +1,12 @@
 import { db } from '@/lib/db';
 import { json, error, readJson } from '@/lib/http';
-import { quizQuestions, effectivePhase, normalizeWord, GRACE_MS } from '@/lib/live';
+import { quizQuestions, effectivePhase, normalizeWord, isEmojiOnly, hasEmoji, GRACE_MS } from '@/lib/live';
 import { isBlocked } from '@/lib/moderation';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_WORDS = 3;
+const MAX_EMOJIS = 5;
 
 // Recebe uma resposta e confere tudo no servidor: atividade atual, pausa, tempo do quiz.
 export async function POST(req, { params }) {
@@ -31,11 +32,15 @@ export async function POST(req, { params }) {
   if (act.kind === 'cloud') {
     const word = normalizeWord(body.text);
     if (!word) return error('Digite uma palavra.');
-    if (isBlocked(word)) return error('Essa palavra não é permitida. Tente outra.', 422);
-    const cnt = await sql`SELECT count(*)::int AS n FROM responses WHERE activity_id = ${act.id} AND participant_id = ${ev.participant_id}`;
-    if (cnt[0].n >= MAX_WORDS) return error(`Você já enviou ${MAX_WORDS} palavras.`, 409);
+    const emoji = isEmojiOnly(word);
+    if (c.allowEmoji === false && hasEmoji(word)) return error('Emojis estão desligados nesta pergunta.', 422);
+    if (isBlocked(word)) return error(emoji ? 'Esse emoji não é permitido.' : 'Essa palavra não é permitida. Tente outra.', 422);
+    const mine = await sql`SELECT text_value FROM responses WHERE activity_id = ${act.id} AND participant_id = ${ev.participant_id}`;
+    const used = mine.filter((r) => isEmojiOnly(r.text_value) === emoji).length;
+    const max = emoji ? MAX_EMOJIS : MAX_WORDS;
+    if (used >= max) return error(emoji ? `Você já enviou ${MAX_EMOJIS} emojis.` : `Você já enviou ${MAX_WORDS} palavras.`, 409);
     await sql`INSERT INTO responses (event_id, activity_id, participant_id, text_value) VALUES (${ev.event_id}, ${act.id}, ${ev.participant_id}, ${word})`;
-    return json({ ok: true, word, remaining: MAX_WORDS - cnt[0].n - 1 });
+    return json({ ok: true, word, emoji, remaining: max - used - 1 });
   }
 
   if (act.kind === 'choice') {

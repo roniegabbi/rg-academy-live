@@ -266,6 +266,7 @@ function CloudForm({ c, upd }) {
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="field"><label htmlFor="c-q">Pergunta para o público</label><input id="c-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">{(c.question || '').length} / 140 · cada pessoa pode enviar até 3 palavras.</span></div>
+      <label className="check"><input type="checkbox" checked={c.allowEmoji !== false} onChange={(e) => upd({ allowEmoji: e.target.checked })} />Permitir emojis (até 5 por pessoa: 👏 ❤️ 🔥 💡 🚀…)</label>
     </div>
   );
 }

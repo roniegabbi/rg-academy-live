@@ -124,15 +124,23 @@ function Header({ kind, index, total, question }) {
   );
 }
 
+const EMOJIS = ['👏', '❤️', '🔥', '💡', '🚀', '💪', '🤝', '🎯', '😂', '🤔'];
+
 function CloudPhone({ pin, a, token, index, total }) {
   const key = `rg:${pin}:${a.id}:words`;
+  const ekey = `rg:${pin}:${a.id}:emojis`;
   const [sent, setSent] = useState(() => Number(store.get(key) || 0));
+  const [esent, setEsent] = useState(() => Number(store.get(ekey) || 0));
   const [word, setWord] = useState('');
   const [last, setLast] = useState('');
   const [err, setErr] = useState('');
+  const [flash, setFlash] = useState('');
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(sent === 0);
   const MAX = 3;
+  const EMAX = 5;
+  const emojiOn = a.allowEmoji !== false;
+
   const send = async (e) => {
     e.preventDefault();
     if (!word.trim()) return;
@@ -140,7 +148,8 @@ function CloudPhone({ pin, a, token, index, total }) {
     setErr('');
     const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, text: word } });
     setBusy(false);
-    if (!r.ok) { setErr(r.error); if (r.status === 409 && /já enviou/.test(r.error)) { store.set(key, MAX); setSent(MAX); setShowForm(false); } return; }
+    if (!r.ok) { setErr(r.error); if (r.status === 409 && /já enviou/.test(r.error) && /palavras/.test(r.error)) { store.set(key, MAX); setSent(MAX); setShowForm(false); } return; }
+    if (r.emoji) { const n = esent + 1; store.set(ekey, n); setEsent(n); setWord(''); setFlash(`${r.word} enviado!`); setTimeout(() => setFlash(''), 1800); return; }
     const n = sent + 1;
     store.set(key, n);
     setSent(n);
@@ -148,11 +157,48 @@ function CloudPhone({ pin, a, token, index, total }) {
     setWord('');
     setShowForm(false);
   };
+
+  const sendEmoji = async (em) => {
+    if (busy || esent >= EMAX) return;
+    setBusy(true);
+    setErr('');
+    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, text: em } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); if (r.status === 409) { store.set(ekey, EMAX); setEsent(EMAX); } return; }
+    const n = esent + 1;
+    store.set(ekey, n);
+    setEsent(n);
+    setFlash(`${em} enviado para o telão!`);
+    setTimeout(() => setFlash(''), 1800);
+  };
+
+  const emojiBar = emojiOn ? (
+    <div className="stack" style={{ gap: 8, width: '100%' }}>
+      <span className="label" style={{ fontSize: 15 }}>Ou envie um emoji {esent < EMAX ? <span className="hint">({EMAX - esent} restantes)</span> : null}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 8 }}>
+        {EMOJIS.map((em) => (
+          <button key={em} type="button" onClick={() => sendEmoji(em)} disabled={busy || esent >= EMAX} aria-label={`Enviar ${em}`}
+            style={{ height: 56, fontSize: 30, borderRadius: 14, border: '2px solid var(--line-2)', background: '#fff', cursor: 'pointer', opacity: esent >= EMAX ? 0.4 : 1 }}>{em}</button>
+        ))}
+      </div>
+      {esent >= EMAX ? <span className="hint">Você já enviou {EMAX} emojis.</span> : null}
+    </div>
+  ) : null;
+  const flashBox = flash ? <div className="ok-box" role="status" style={{ textAlign: 'center', fontWeight: 700 }}>{flash}</div> : null;
+
   if (!showForm) {
     return (
-      <Center icon={IconCheck} title="Palavra enviada!" text={last ? `“${last}” já está no mapa do telão.` : 'Sua resposta já está no mapa do telão.'}>
-        {sent < MAX ? <button className="btn btn-lg" onClick={() => setShowForm(true)}>Enviar outra palavra ({MAX - sent} restantes)</button> : <p className="hint" style={{ fontSize: 15 }}>Você já enviou {MAX} palavras.</p>}
-      </Center>
+      <div className="phone-body">
+        <div className="phone-center" style={{ flex: 'none', paddingBottom: 0 }}>
+          {IconCheck}
+          <h1 style={{ fontSize: 28, fontWeight: 800 }}>Palavra enviada!</h1>
+          <p className="muted" style={{ fontSize: 18, lineHeight: 1.4 }}>{last ? `“${last}” já está no mapa do telão.` : 'Sua resposta já está no mapa do telão.'}</p>
+          {sent < MAX ? <button className="btn btn-lg" onClick={() => setShowForm(true)}>Enviar outra palavra ({MAX - sent} restantes)</button> : <p className="hint" style={{ fontSize: 15 }}>Você já enviou {MAX} palavras.</p>}
+        </div>
+        {flashBox}
+        {err ? <div className="alert" role="alert">{err}</div> : null}
+        {emojiBar}
+      </div>
     );
   }
   return (
@@ -162,9 +208,11 @@ function CloudPhone({ pin, a, token, index, total }) {
         <label htmlFor="w" className="label" style={{ fontSize: 16 }}>Sua palavra</label>
         <input id="w" className="input" style={{ fontSize: 24, fontWeight: 600, padding: 18 }} maxLength={25} value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" />
         <span className="hint" style={{ alignSelf: 'flex-end' }}>{word.length} / 25</span>
-        {err ? <div className="alert" role="alert">{err}</div> : null}
+        <button className="btn btn-primary btn-lg btn-block" disabled={busy || !word.trim()}>{busy ? 'Enviando…' : 'Enviar palavra'}</button>
       </div>
-      <button className="btn btn-primary btn-lg btn-block" disabled={busy || !word.trim()}>{busy ? 'Enviando…' : 'Enviar palavra'}</button>
+      {flashBox}
+      {err ? <div className="alert" role="alert">{err}</div> : null}
+      {emojiBar}
     </form>
   );
 }
