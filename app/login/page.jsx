@@ -2,6 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+function nextUrl() {
+  if (typeof window === 'undefined') return '/painel';
+  const n = new URLSearchParams(window.location.search).get('next') || '';
+  return n.startsWith('/') && !n.startsWith('//') ? n : '/painel';
+}
 import { api } from '@/components/client';
 
 export default function Login() {
@@ -18,7 +24,7 @@ export default function Login() {
     setErr('');
     const r = await api(mode === 'login' ? '/api/auth/login' : '/api/auth/signup', { method: 'POST', body: f });
     setBusy(false);
-    if (r.ok) router.replace('/painel');
+    if (r.ok) router.replace(nextUrl());
     else setErr(r.error);
   };
 

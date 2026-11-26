@@ -11,6 +11,9 @@ export async function POST(req) {
   if (!email || !password) return error('Informe e-mail e senha.');
   const sql = db();
   const rows = await sql`SELECT id, name, pass_hash FROM users WHERE email = ${email}`;
-  if (!rows.length || !verifyPassword(password, rows[0].pass_hash)) return error('E-mail ou senha incorretos.', 401);
+  if (!rows.length || !verifyPassword(password, rows[0].pass_hash)) {
+    await new Promise((r) => setTimeout(r, 900)); // freia tentativas em série
+    return error('E-mail ou senha incorretos.', 401);
+  }
   return json({ ok: true, user: { id: rows[0].id, name: rows[0].name } }, { headers: { 'Set-Cookie': sessionCookie(rows[0].id) } });
 }

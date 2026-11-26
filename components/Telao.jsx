@@ -18,6 +18,12 @@ export default function Telao({ data, joinUrl, full = false }) {
   }
   const { event, activity: a, run = {}, results, participants, paused, index, total } = data;
   const status = event.status;
+  let host = '';
+  try { host = joinUrl ? new URL(joinUrl).host : ''; } catch { host = ''; }
+  // Rodapé só onde ajuda: some na capa (que já tem o QR grande) e em vídeo/imagem.
+  const isJoinScreen = status !== 'live' || (a && a.kind === 'slide' && a.mode === 'qr');
+  const isMedia = a && a.kind === 'slide' && (a.mode === 'youtube' || a.mode === 'image');
+  const showFoot = !isJoinScreen && !isMedia;
 
   let body = null;
   if (status !== 'live') {
@@ -83,21 +89,26 @@ export default function Telao({ data, joinUrl, full = false }) {
 
   return (
     <div className={'telao' + (full ? ' telao-full' : '')} style={full ? null : { borderRadius: 18, minHeight: 460 }}>
-      <div className="telao-head">
-        <span className="telao-kind">{status === 'live' && a ? `${index + 1}/${total} · ${kindLabel(a)}` : 'RG Academy Live'}</span>
+      <div className="telao-head" style={{ minHeight: '2vh' }}>
+        {!full ? <span className="telao-kind">{status === 'live' && a ? `${index + 1}/${total} · ${kindLabel(a)}` : 'Não iniciado'}</span> : null}
         <div style={{ flex: 1 }} />
-        {paused && status === 'live' ? <span className="telao-pill" style={{ background: '#F2A93B', color: '#0B2238' }}>Respostas pausadas</span> : null}
-        {status === 'live' ? <span className="telao-pill"><span className="dot-live" />AO VIVO</span> : null}
+        {paused && status === 'live' && a && a.kind !== 'slide' ? <span className="telao-pill" style={{ background: '#F2A93B', color: '#0B2238' }}>Respostas pausadas</span> : null}
       </div>
       <div className="telao-body">{body}</div>
-      <div className="telao-foot">
-        {joinUrl ? <QR value={joinUrl} size={300} className="qr-mini" /> : null}
-        <span>Participe pelo QR code ou com o PIN <strong>{event.pin}</strong></span>
-        <div style={{ flex: 1 }} />
-        <span style={{ color: '#C9D6E2' }}><b style={{ color: '#fff' }}>{participants || 0}</b> {participants === 1 ? 'participante' : 'participantes'}</span>
-      </div>
+      {showFoot ? (
+        <div className="telao-foot">
+          {joinUrl ? <QR value={joinUrl} size={300} className="qr-mini" /> : null}
+          <span style={{ color: '#C9D6E2' }}>{host ? <>{host} · </> : null}PIN <strong>{event.pin}</strong></span>
+          <div style={{ flex: 1 }} />
+          {a && a.kind !== 'slide' ? <span style={{ color: '#C9D6E2' }}><b style={{ color: '#fff' }}>{participants || 0}</b> {participants === 1 ? 'participante' : 'participantes'}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function hostOf(u) {
+  try { return u ? new URL(u).host : ''; } catch { return ''; }
 }
 
 function JoinSlide({ heading, joinUrl, pin, note }) {
@@ -108,7 +119,7 @@ function JoinSlide({ heading, joinUrl, pin, note }) {
         <img src="/rg-academy-logo.png" alt="RG Academy" style={{ height: '6vh', width: 'auto', alignSelf: 'flex-start' }} />
         <h2 style={{ fontSize: 'clamp(26px, 5.5vh, 72px)', fontWeight: 800 }}>{heading}</h2>
         <p style={{ fontSize: 'clamp(16px, 2.6vh, 32px)', lineHeight: 1.4, color: '#4A5D70' }}>1. Abra a câmera do celular<br />2. Aponte para o QR code<br />3. Toque no link e participe</p>
-        <p style={{ fontSize: 'clamp(14px, 2.2vh, 26px)', color: '#4A5D70' }}>Sem câmera? Acesse o site e use o PIN <b style={{ color: '#0B2238', letterSpacing: '.1em' }}>{pin}</b></p>
+        <p style={{ fontSize: 'clamp(14px, 2.2vh, 26px)', color: '#4A5D70' }}>Sem câmera? Acesse <b style={{ color: '#0B2238' }}>{hostOf(joinUrl)}</b> e use o PIN <b style={{ color: '#0B2238', letterSpacing: '.1em' }}>{pin}</b></p>
         {note ? <p style={{ fontSize: 'clamp(14px, 2.2vh, 26px)', fontWeight: 700, color: '#2E7D1E' }}>{note}</p> : null}
       </div>
     </div>

@@ -16,5 +16,5 @@ export async function GET(req, { params }) {
     activityResults(act, data.ev.run || {}),
     countParticipants(id)
   ]);
-  return json({ ...state, results, participants, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title })) });
+  return json({ ...state, results, participants, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title, mode: a.config && a.config.mode })) });
 }

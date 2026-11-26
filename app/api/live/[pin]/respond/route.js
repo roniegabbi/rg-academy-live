@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { json, error, readJson } from '@/lib/http';
 import { quizQuestions, effectivePhase, normalizeWord, GRACE_MS } from '@/lib/live';
+import { isBlocked } from '@/lib/moderation';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export async function POST(req, { params }) {
   if (act.kind === 'cloud') {
     const word = normalizeWord(body.text);
     if (!word) return error('Digite uma palavra.');
+    if (isBlocked(word)) return error('Essa palavra não é permitida. Tente outra.', 422);
     const cnt = await sql`SELECT count(*)::int AS n FROM responses WHERE activity_id = ${act.id} AND participant_id = ${ev.participant_id}`;
     if (cnt[0].n >= MAX_WORDS) return error(`Você já enviou ${MAX_WORDS} palavras.`, 409);
     await sql`INSERT INTO responses (event_id, activity_id, participant_id, text_value) VALUES (${ev.event_id}, ${act.id}, ${ev.participant_id}, ${word})`;

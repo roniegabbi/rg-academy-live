@@ -73,6 +73,21 @@ export async function POST(req, { params }) {
       if (act && act.kind === 'quiz') run = initialRun(act);
       break;
     }
+    case 'hideWord':
+    case 'showWord': {
+      const act = acts[index];
+      if (!act || act.kind !== 'cloud') return error('A atividade atual não é um mapa de palavras.');
+      const word = String(body.word || '').slice(0, 25);
+      const cur = (act.config && act.config.hidden) || [];
+      const low = word.toLocaleLowerCase('pt-BR');
+      const hidden = action === 'hideWord'
+        ? [...cur.filter((w) => w.toLocaleLowerCase('pt-BR') !== low), word].slice(-200)
+        : cur.filter((w) => w.toLocaleLowerCase('pt-BR') !== low);
+      const cfg = { ...(act.config || {}), hidden };
+      await sql`UPDATE activities SET config = ${JSON.stringify(cfg)}::jsonb WHERE id = ${act.id}`;
+      act.config = cfg;
+      break;
+    }
     case 'clearEvent':
       await sql`DELETE FROM responses WHERE event_id = ${id}`;
       await sql`DELETE FROM participants WHERE event_id = ${id}`;
