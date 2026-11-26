@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Topbar from '@/components/Topbar';
 import { api, kindLabel, letters } from '@/components/client';
 import { compressImage, uploadImage, pdfToImages } from '@/components/media';
+import AiPanel from '@/components/AiPanel';
 
 const ADD = [
   { kind: 'slide', label: 'Slide', desc: 'Texto, imagem ou vídeo' },
@@ -279,8 +280,10 @@ function SlideForm({ c, upd, setErr }) {
 }
 
 function CloudForm({ c, upd }) {
+  const [ai, setAi] = useState(false);
   return (
     <div className="stack" style={{ gap: 14 }}>
+      {ai ? <AiPanel kind="cloud" onCloud={(q) => upd({ question: q })} onClose={() => setAi(false)} /> : <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAi(true)}>✨ Sugerir pergunta com IA</button>}
       <div className="field"><label htmlFor="c-q">Pergunta para o público</label><input id="c-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">{(c.question || '').length} / 140 · cada pessoa pode enviar até 3 palavras.</span></div>
       <label className="check"><input type="checkbox" checked={c.allowEmoji !== false} onChange={(e) => upd({ allowEmoji: e.target.checked })} />Permitir emojis (até 5 por pessoa: 👏 ❤️ 🔥 💡 🚀…)</label>
     </div>
@@ -290,8 +293,10 @@ function CloudForm({ c, upd }) {
 function ChoiceForm({ c, upd }) {
   const opts = c.options || [];
   const setOpt = (i, v) => upd({ options: opts.map((o, j) => (j === i ? v : o)) });
+  const [ai, setAi] = useState(false);
   return (
     <div className="stack" style={{ gap: 14 }}>
+      {ai ? <AiPanel kind="choice" onPoll={(p) => upd({ question: p.question, options: p.options })} onClose={() => setAi(false)} /> : <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAi(true)}>✨ Sugerir enquete com IA</button>}
       <div className="field"><label htmlFor="m-q">Pergunta</label><input id="m-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /></div>
       <div className="field">
         <span className="label">Alternativas (mínimo 2, máximo 10)</span>
@@ -317,8 +322,14 @@ function QuizForm({ c, upd }) {
   const setQ = (i, patch) => upd({ questions: qs.map((q, j) => (j === i ? { ...q, ...patch } : q)) });
   const addQ = () => upd({ questions: [...qs, { text: '', options: ['', '', '', ''], correct: 0, seconds: (qs[qs.length - 1] && qs[qs.length - 1].seconds) || 15 }] });
   const allSame = qs.length && qs.every((q) => Number(q.seconds || 15) === Number(qs[0].seconds || 15));
+  const [ai, setAi] = useState(false);
+  const fromAi = (generated, mode) => {
+    const filled = qs.filter((q) => (q.text || '').trim() && q.text !== 'Nova pergunta do quiz');
+    upd({ questions: mode === 'append' ? [...filled, ...generated] : generated });
+  };
   return (
     <div className="stack" style={{ gap: 14 }}>
+      {ai ? <AiPanel kind="quiz" onQuiz={fromAi} onClose={() => setAi(false)} /> : <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => setAi(true)}>✨ Criar quiz com IA</button>}
       <div className="row" style={{ gap: 10, justifyContent: 'space-between' }}>
         <p className="hint" style={{ flex: '1 1 300px' }}>Acertos valem de 500 a 1.000 pontos: quanto mais rápido, mais pontos. O ranking soma todas as perguntas deste quiz. Você pode revelar a resposta antes do tempo acabar.</p>
         <label className="row" style={{ gap: 8, fontSize: 14, fontWeight: 600 }}>Tempo para todas as perguntas
