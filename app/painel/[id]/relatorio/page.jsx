@@ -67,8 +67,8 @@ export default function Relatorio() {
               <>
                 <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question}</h2>
                 <p className="muted">{a.results.total} palavras enviadas</p>
-                <div style={{ border: '1px solid var(--line)', borderRadius: 14, minHeight: 320, display: 'flex' }}>
-                  <WordCloud words={a.results.words} light scale={0.8} empty="Nenhuma palavra enviada." />
+                <div style={{ border: '1px solid var(--line)', borderRadius: 14, height: 380, display: 'flex', padding: 12 }}>
+                  <WordCloud words={a.results.words} light empty="Nenhuma palavra enviada." />
                 </div>
                 {a.results.words.length ? (
                   <div className="stack" style={{ gap: 4 }}>

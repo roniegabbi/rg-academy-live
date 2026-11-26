@@ -2,33 +2,7 @@
 
 import { letters } from './client';
 
-const DARK_PALETTE = ['#7FD35F', '#FFFFFF', '#A9D8FF', '#45B02B', '#E3EEF7'];
-const LIGHT_PALETTE = ['#2E7D1E', '#0B2238', '#2F5B82', '#45B02B', '#4A5D70'];
-
-// Mapa de palavras: maior = mais citada, mais citadas no centro.
-export function WordCloud({ words = [], light = false, scale = 1, empty = 'Aguardando as primeiras palavras do público…' }) {
-  if (!words.length) return <div className="cloud"><span style={{ fontSize: 20 * scale, color: light ? '#4A5D70' : '#9FB3C6' }}>{empty}</span></div>;
-  const max = words[0].count || 1;
-  const palette = light ? LIGHT_PALETTE : DARK_PALETTE;
-  const arranged = [];
-  words.slice(0, 60).forEach((w, i) => {
-    const r = w.count / max;
-    const item = {
-      ...w,
-      size: Math.round((16 + r * 64) * scale),
-      weight: r > 0.5 ? 800 : r > 0.25 ? 700 : 500,
-      color: i === 0 ? (light ? '#2E7D1E' : '#7FD35F') : palette[i % palette.length]
-    };
-    if (i % 2 === 0) arranged.push(item); else arranged.unshift(item);
-  });
-  return (
-    <div className={'cloud' + (light ? ' cloud-light' : '')}>
-      {arranged.map((w) => (
-        <span key={w.text} className="cloud-word" style={{ fontSize: w.size, color: w.color, fontWeight: w.weight }} title={`${w.text}: ${w.count}`}>{w.text}</span>
-      ))}
-    </div>
-  );
-}
+export { default as WordCloud } from './WordCloud';
 
 // Gráfico de barras ao vivo (múltipla escolha).
 export function Bars({ options = [], counts = [] }) {

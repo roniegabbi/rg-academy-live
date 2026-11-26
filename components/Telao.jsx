@@ -47,7 +47,7 @@ export default function Telao({ data, joinUrl, full = false }) {
       );
     }
   } else if (a.kind === 'cloud') {
-    body = (<><h2 className="telao-q">{a.question}</h2><WordCloud words={(results && results.words) || []} scale={full ? 1.3 : 0.8} /></>);
+    body = (<><h2 className="telao-q">{a.question}</h2><WordCloud words={(results && results.words) || []} /></>);
   } else if (a.kind === 'choice') {
     body = (<><h2 className="telao-q">{a.question}</h2><Bars options={a.options} counts={(results && results.counts) || []} /></>);
   } else if (a.kind === 'quiz') {
