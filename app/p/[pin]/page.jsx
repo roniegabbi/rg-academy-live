@@ -299,7 +299,7 @@ function ChoicePhone({ pin, a, token, index, total }) {
   };
   if (voted) {
     const mine = store.get(key + ':labels');
-    return <Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}. Veja o gráfico se movendo no telão.` : 'Veja o gráfico se movendo no telão.'} />;
+    return <><Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}. Veja o gráfico se movendo no telão.` : 'Veja o gráfico se movendo no telão.'} /><ReactionBar pin={pin} token={token} /></>;
   }
   return (
     <div className="phone-body">

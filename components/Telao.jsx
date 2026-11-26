@@ -424,7 +424,7 @@ function Reactions({ list }) {
     if (!fresh.length) return;
     fresh.forEach((r) => seen.current.add(r.id));
     if (seen.current.size > 3000) seen.current = new Set(fresh.map((r) => r.id));
-    const born = fresh.map((r, i) => ({ id: r.id, emoji: r.emoji, x: 1060 + Math.random() * 170, delay: i * 0.12 + Math.random() * 0.3, dur: 3.2 + Math.random() * 1.4, size: 40 + Math.random() * 22, sway: (Math.random() * 60 - 30).toFixed(0) }));
+    const born = fresh.map((r, i) => ({ id: r.id, emoji: r.emoji, x: 1150 + Math.random() * 80, delay: i * 0.12 + Math.random() * 0.3, dur: 3.2 + Math.random() * 1.4, size: 40 + Math.random() * 22, sway: (Math.random() * 60 - 30).toFixed(0) }));
     setItems((cur) => [...cur.slice(-60), ...born]);
     const ids = new Set(born.map((b) => b.id));
     const t = setTimeout(() => setItems((cur) => cur.filter((x) => !ids.has(x.id))), 6500);
