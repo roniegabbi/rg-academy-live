@@ -1,28 +1,27 @@
-# RG Academy Live: onde paramos (26/11/2026)
+# RG Academy Live: onde paramos (26/11/2026, 19h30)
 
-## Pronto
-- Protótipo visual (aprovado): https://claude.ai/artifact/4QNHk7JJ5px8rL7JH9aMM4
-- Banco Neon: projeto `rg-academy-live` (id `silent-dust-36535150`, região aws-sa-east-1, Postgres 18).
-  Tabelas: users, events, activities, participants, responses, images.
-- Código completo do app (Next.js 15, JavaScript) nesta pasta.
-  Sintaxe verificada; consultas do gráfico, quiz e ranking testadas no banco.
+## No ar
+- App: https://rg-academy-live.vercel.app (login do palestrante em /login)
+- Código: github.com/roniegabbi/rg-academy-live (público, sem segredos) → publicação automática na Vercel
+- Banco: Neon, projeto `rg-academy-live` (silent-dust-36535150, São Paulo)
+- Protótipo e telas aprovadas: https://claude.ai/artifact/4QNHk7JJ5px8rL7JH9aMM4 (página "Telão — novo visual")
 
-## Falta
-1. Criar o repositório privado `roniegabbi/rg-academy-live` no GitHub (clique do usuário em "Create repository").
-2. Enviar este código para o repositório (git push).
-3. Importar o repositório na Vercel (equipe roniegabbi74-4301's projects, plano Hobby), região gru1, com as variáveis:
-   - DATABASE_URL: string de conexão "pooler" do Neon (pegar com get_connection_string)
-   - SESSION_SECRET: chave aleatória de 64 caracteres hex (gerada nesta sessão)
-   - SIGNUP_CODE: código de convite (guardado com o responsável)
-   Observação: o conector da Vercel recusa criar projetos (403), então a importação é pelo painel.
-4. Testar o fluxo completo: cadastro, evento, controle, telão, celular, relatório, CSV.
-5. Teste de carga simulando 500 participantes.
-6. Antes do primeiro evento comercial: plano Vercel Pro (decisão do usuário).
+## Pronto e testado
+- Eventos em sequência: Capa (tipográfica, aprovada) + QR code + slides (texto, imagem, PDF importado, YouTube), mapa de palavras (com emojis e moderação), múltipla escolha (gráfico), quiz competitivo (tempo de 5 a 60 s, 15 s por padrão, tempo para todas as perguntas, revelação antecipada, pódio com troféu e medalhas)
+- Telão protegido (só o palestrante logado), novo visual aprovado em 8 telas, transições, controles discretos e passador de slides
+- Painel do palestrante com botão único "Avançar", "A seguir", moderação de palavras e menu Mais opções
+- Relatório em PDF e planilha CSV
+- Ensaio de carga com 300 participantes: 0 falhas, respostas típicas em ~0,1 s
 
-## Arquitetura (resumo)
-- Celulares: GET /api/live/[pin] com cache de 1s na CDN, sondagem a cada 1,5s.
-- Telão: GET /api/live/[pin]/results (sem cache, 1 cliente), sondagem a cada 1s.
-- Respostas: POST /api/live/[pin]/respond. O servidor valida a atividade atual, a pausa, o tempo do quiz (tolerância de 1,5s) e um voto por pessoa.
-- Imagens e páginas de PDF: comprimidas no navegador, guardadas no Neon (tabela images) e servidas com cache imutável.
-- PDF de slides: renderizado no navegador com pdf.js 4.10.38 via CDN jsdelivr.
-- Relatório: /painel/[id]/relatorio (impressão do navegador → Salvar como PDF) e /api/events/[id]/export (CSV).
+## Em andamento: "Criar com IA" (Claude Haiku 5.5 via API da Anthropic)
+- Código já publicado: botão "✨ Criar quiz com IA" no quiz, sugestão de enquete e de pergunta do mapa
+- Claude Console: créditos do plano Max ativados (US$ 100/mês); espaço de trabalho "RG Academy Live" criado com limite de US$ 20/mês
+- FALTA:
+  1. Usuário cria a chave "RG Academy Live" no espaço "RG Academy Live" (Console → Chaves de API)
+  2. Usuário cola em Vercel → Environment Variables → `ANTHROPIC_API_KEY`
+  3. Republicar (as variáveis novas só valem numa publicação nova) e testar a geração de um quiz de 10 perguntas
+
+## Pendências e lembretes
+- Vercel está no plano Hobby: uso comercial com clientes exige o plano Pro (decisão do usuário)
+- Eventos de teste para excluir quando quiser: "Ensaio de carga (300)", "Teste de emojis", "Liderança que inspira" (vitrines)
+- Próximas melhorias sugeridas: limitar entradas falsas em massa, teste com 500 participantes antes de eventos grandes
