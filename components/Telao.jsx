@@ -94,7 +94,7 @@ export default function Telao({ data, joinUrl, full = false }) {
         {joinUrl ? <QR value={joinUrl} size={300} className="qr-mini" /> : null}
         <span>Participe pelo QR code ou com o PIN <strong>{event.pin}</strong></span>
         <div style={{ flex: 1 }} />
-        <span style={{ color: '#C9D6E2' }}><b style={{ color: '#fff' }}>{participants || 0}</b> participantes</span>
+        <span style={{ color: '#C9D6E2' }}><b style={{ color: '#fff' }}>{participants || 0}</b> {participants === 1 ? 'participante' : 'participantes'}</span>
       </div>
     </div>
   );

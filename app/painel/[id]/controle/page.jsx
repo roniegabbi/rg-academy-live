@@ -109,7 +109,7 @@ export default function Controle() {
             {joinUrl ? <QR value={joinUrl} size={400} style={{ width: 200, height: 200 }} /> : null}
             <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '.12em' }}>{event.pin}</span>
             <span className="hint" style={{ wordBreak: 'break-all' }}>{joinUrl}</span>
-            <span style={{ fontSize: 15 }}><b style={{ fontSize: 22 }}>{data.participants || 0}</b> participantes</span>
+            <span style={{ fontSize: 15 }}><b style={{ fontSize: 22 }}>{data.participants || 0}</b> {data.participants === 1 ? 'participante' : 'participantes'}</span>
           </aside>
         </div>
       </main>
