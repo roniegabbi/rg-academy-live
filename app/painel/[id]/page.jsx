@@ -15,7 +15,10 @@ const ADD = [
 ];
 
 function autoTitle(kind, c) {
-  if (kind === 'slide') return (c.heading || '').trim() || ({ qr: 'Capa com QR code', image: 'Imagem', youtube: 'Vídeo', text: 'Slide' }[c.mode] || 'Slide');
+  if (kind === 'slide') {
+    if (c.mode === 'qr') return 'QR code para participar';
+    return (c.heading || '').trim() || ({ cover: 'Capa', image: 'Imagem', youtube: 'Vídeo', text: 'Slide' }[c.mode] || 'Slide');
+  }
   if (kind === 'cloud' || kind === 'choice') return (c.question || '').trim() || (kind === 'cloud' ? 'Mapa de palavras' : 'Múltipla escolha');
   if (kind === 'quiz') {
     const n = (c.questions || []).length;
@@ -227,7 +230,7 @@ function SlideForm({ c, upd, setErr }) {
       setUp(false);
     }
   };
-  const modes = [['qr', 'Capa com QR code'], ['text', 'Texto'], ['image', 'Imagem'], ['youtube', 'Vídeo do YouTube']];
+  const modes = [['cover', 'Capa'], ['qr', 'QR code'], ['text', 'Texto'], ['image', 'Imagem'], ['youtube', 'Vídeo do YouTube']];
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="field">
@@ -238,10 +241,23 @@ function SlideForm({ c, upd, setErr }) {
           ))}
         </div>
       </div>
-      {(c.mode === 'qr' || c.mode === 'text' || !c.mode) ? (
+      {c.mode === 'cover' ? (
+        <div className="stack" style={{ gap: 12 }}>
+          <div className="field"><label htmlFor="cv-e">Chamada acima do título</label><input id="cv-e" className="input" placeholder="Ex.: Workshop, Palestra, Treinamento" value={c.eyebrow || ''} maxLength={40} onChange={(e) => upd({ eyebrow: e.target.value })} /></div>
+          <div className="field"><label htmlFor="cv-h">Título</label><input id="cv-h" className="input" value={c.heading || ''} maxLength={140} onChange={(e) => upd({ heading: e.target.value })} /><span className="hint">A segunda metade do título aparece em verde.</span></div>
+          <div className="field"><label htmlFor="cv-t">Subtítulo</label><input id="cv-t" className="input" value={c.text || ''} maxLength={160} onChange={(e) => upd({ text: e.target.value })} /></div>
+          <div className="field"><label htmlFor="cv-b">Palavra gigante ao fundo</label><input id="cv-b" className="input" placeholder="Ex.: INSPIRA" value={c.bgWord || ''} maxLength={16} onChange={(e) => upd({ bgWord: e.target.value })} /></div>
+          <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+            <div className="field" style={{ flex: '1 1 180px' }}><label htmlFor="cv-p">Palestrante</label><input id="cv-p" className="input" value={c.presenter || ''} maxLength={80} onChange={(e) => upd({ presenter: e.target.value })} /></div>
+            <div className="field" style={{ flex: '1 1 180px' }}><label htmlFor="cv-d">Data</label><input id="cv-d" className="input" placeholder="Ex.: 27 de novembro de 2026" value={c.date || ''} maxLength={60} onChange={(e) => upd({ date: e.target.value })} /></div>
+            <div className="field" style={{ flex: '1 1 180px' }}><label htmlFor="cv-l">Local ou empresa</label><input id="cv-l" className="input" value={c.place || ''} maxLength={80} onChange={(e) => upd({ place: e.target.value })} /></div>
+          </div>
+        </div>
+      ) : null}
+      {c.mode === 'text' || !c.mode ? (
         <div className="field"><label htmlFor="s-h">Título</label><input id="s-h" className="input" value={c.heading || ''} maxLength={140} onChange={(e) => upd({ heading: e.target.value })} /></div>
       ) : null}
-      {c.mode === 'qr' ? <p className="hint">Mostra no telão o QR code grande, o PIN e as instruções para o público entrar.</p> : null}
+      {c.mode === 'qr' ? <p className="hint">Mostra no telão “Leia o QR code e participe”, com o QR grande, o endereço e o PIN.</p> : null}
       {(c.mode === 'text' || !c.mode) ? (
         <div className="field"><label htmlFor="s-t">Texto</label><textarea id="s-t" className="textarea" value={c.text || ''} maxLength={1000} onChange={(e) => upd({ text: e.target.value })} /><span className="hint">{(c.text || '').length} / 1000</span></div>
       ) : null}

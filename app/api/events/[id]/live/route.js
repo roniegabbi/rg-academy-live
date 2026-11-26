@@ -1,4 +1,5 @@
 import { json, error } from '@/lib/http';
+import { db } from '@/lib/db';
 import { ownedEvent } from '@/lib/auth';
 import { loadEventById, publicState, activityResults, countParticipants } from '@/lib/live';
 
@@ -16,5 +17,7 @@ export async function GET(req, { params }) {
     activityResults(act, data.ev.run || {}),
     countParticipants(id)
   ]);
-  return json({ ...state, results, participants, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title, mode: a.config && a.config.mode })) });
+  const rc = await db()`SELECT count(*)::int AS n FROM responses WHERE event_id = ${id}`;
+  const stats = { responses: rc[0].n, activities: data.acts.filter((a) => a.kind !== 'slide').length };
+  return json({ ...state, results, participants, stats, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title, mode: a.config && a.config.mode })) });
 }

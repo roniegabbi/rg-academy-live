@@ -27,9 +27,13 @@ export async function POST(req) {
     try {
       const rows = await sql`INSERT INTO events (owner_id, title, pin) VALUES (${uid}, ${title}, ${pin}) RETURNING id`;
       const id = rows[0].id;
-      // Todo evento começa com a capa de entrada pelo QR code.
-      const cfg = JSON.stringify({ mode: 'qr', heading: title, text: '' });
-      await sql`INSERT INTO activities (event_id, position, kind, title, config) VALUES (${id}, 0, 'slide', 'Capa com QR code', ${cfg}::jsonb)`;
+      // Todo evento começa com a capa (slide 1) e o QR code de entrada (slide 2).
+      const me = await sql`SELECT name FROM users WHERE id = ${uid}`;
+      const words = title.split(/\s+/).filter((w) => w.length > 3);
+      const cover = JSON.stringify({ mode: 'cover', heading: title, text: '', eyebrow: 'Workshop', bgWord: (words[words.length - 1] || title).toUpperCase().slice(0, 16), presenter: me.length ? me[0].name : '', date: '', place: '' });
+      const qr = JSON.stringify({ mode: 'qr', heading: '', text: '' });
+      await sql`INSERT INTO activities (event_id, position, kind, title, config) VALUES (${id}, 0, 'slide', ${title}, ${cover}::jsonb)`;
+      await sql`INSERT INTO activities (event_id, position, kind, title, config) VALUES (${id}, 1, 'slide', 'QR code para participar', ${qr}::jsonb)`;
       return json({ ok: true, id });
     } catch (e) {
       if (!String(e.message || '').includes('events_pin_key')) throw e;

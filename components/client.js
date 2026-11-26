@@ -68,7 +68,7 @@ export function useNow(ms = 250) {
 }
 
 export const KIND_LABEL = { slide: 'Slide', cloud: 'Mapa de palavras', choice: 'Múltipla escolha', quiz: 'Quiz competitivo' };
-export const SLIDE_MODE_LABEL = { qr: 'Capa com QR code', image: 'Imagem', youtube: 'Vídeo do YouTube', text: 'Texto' };
+export const SLIDE_MODE_LABEL = { cover: 'Capa', qr: 'QR code', image: 'Imagem', youtube: 'Vídeo do YouTube', text: 'Texto' };
 
 export function kindLabel(a) {
   if (!a) return '';

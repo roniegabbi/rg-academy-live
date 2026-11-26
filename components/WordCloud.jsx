@@ -68,8 +68,7 @@ export default function WordCloud({ words = [], light = false, empty = 'Aguardan
     const el = ref.current;
     if (!el) return undefined;
     const measure = () => {
-      const r = el.getBoundingClientRect();
-      setBox((b) => ({ ...b, w: r.width, h: r.height, family: getComputedStyle(el).fontFamily || 'sans-serif' }));
+      setBox((b) => ({ ...b, w: el.offsetWidth, h: el.offsetHeight, family: getComputedStyle(el).fontFamily || 'sans-serif' }));
     };
     measure();
     const ro = new ResizeObserver(measure);
