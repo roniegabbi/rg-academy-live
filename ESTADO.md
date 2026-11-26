@@ -25,3 +25,19 @@
 - Vercel está no plano Hobby: uso comercial com clientes exige o plano Pro (decisão do usuário)
 - Eventos de teste para excluir quando quiser: "Ensaio de carga (300)", "Teste de emojis", "Liderança que inspira" (vitrines)
 - Próximas melhorias sugeridas: limitar entradas falsas em massa, teste com 500 participantes antes de eventos grandes
+
+## Rodada 26/11 — integração com o público
+- Reações ao vivo (👏 ❤️ 🔥 😂 💡 🙌): barra no celular (slides, espera, após votar); sobem pela borda direita do telão. Limite de 1 reação a cada 1,5s por pessoa (servidor), só emojis da lista.
+- Celular: tela sempre acesa (Wake Lock), vibração quando chega pergunta nova, pedido de nome antes do quiz para quem entrou sem nome, "Você votou em: …" após o voto.
+- Filtro de nomes ofensivos na entrada.
+- Testado em produção com evento temporário (já apagado): reações, limite, emoji inválido, filtro de nome, nome no ranking e confirmação do voto.
+
+### Próximas oportunidades (não feitas)
+1. Pergunte ao palestrante (Q&A com curtidas e moderação).
+2. Sorteio entre participantes no telão.
+3. Resultado no celular após fechar a votação.
+4. Sequência de acertos (streak) no quiz e posição individual no celular.
+5. Liga/desliga de reações por evento.
+6. Ensaio de carga das reações com 500 pessoas.
+7. Proteção contra entradas falsas em massa (limite por IP).
+8. Nuvem de palavras: agrupar sinônimos/plurais.
