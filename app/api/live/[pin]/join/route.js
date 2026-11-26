@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { json, error, readJson } from '@/lib/http';
 import { randomToken } from '@/lib/auth';
+import { isBlocked } from '@/lib/moderation';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export async function POST(req, { params }) {
   if (ev.status === 'ended') return error('Este evento já foi encerrado.', 410);
   const name = String(body.name || '').replace(/\s+/g, ' ').trim().slice(0, 40);
   if (ev.require_name && name.length < 2) return error('Informe seu nome para entrar.');
+  if (name && isBlocked(name)) return error('Esse nome não é permitido. Use seu nome ou apelido.', 422);
   // Reaproveita o token se o celular já tinha entrado antes (recarregou a página).
   if (body.token && typeof body.token === 'string') {
     const ex = await sql`SELECT id, name FROM participants WHERE token = ${body.token} AND event_id = ${ev.id}`;

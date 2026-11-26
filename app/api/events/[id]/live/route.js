@@ -19,5 +19,8 @@ export async function GET(req, { params }) {
   ]);
   const rc = await db()`SELECT count(*)::int AS n FROM responses WHERE event_id = ${id}`;
   const stats = { responses: rc[0].n, activities: data.acts.filter((a) => a.kind !== 'slide').length };
-  return json({ ...state, results, participants, stats, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title, mode: a.config && a.config.mode })) });
+  const reactions = data.ev.status === 'live'
+    ? await db()`SELECT id::text AS id, emoji FROM reactions WHERE event_id = ${id} AND created_at > now() - interval '3 seconds' ORDER BY id DESC LIMIT 60`
+    : [];
+  return json({ ...state, results, participants, stats, reactions, activities: data.acts.map((a) => ({ id: a.id, kind: a.kind, title: a.title, mode: a.config && a.config.mode })) });
 }

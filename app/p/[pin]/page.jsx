@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api, usePoll, useNow, letters } from '@/components/client';
 import { remainingSeconds } from '@/components/Telao';
@@ -32,6 +32,8 @@ export default function Participante() {
 
   return (
     <Shell event={ev} offline={offline}>
+      <KeepAwake />
+      <Buzz data={data} />
       <Live pin={pin} data={data} token={token} />
     </Shell>
   );
@@ -99,12 +101,69 @@ function Join({ pin, ev, name, setName, onJoin }) {
   );
 }
 
+// Mantém a tela do celular acesa durante o evento (onde o navegador permitir).
+function KeepAwake() {
+  useEffect(() => {
+    let lock = null;
+    const ask = async () => {
+      try { if (navigator.wakeLock && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); } catch { /* sem suporte */ }
+    };
+    ask();
+    const onVis = () => { if (document.visibilityState === 'visible') ask(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); try { if (lock) lock.release(); } catch { /* ok */ } };
+  }, []);
+  return null;
+}
+
+// Vibra levemente quando uma pergunta nova aparece no celular.
+function Buzz({ data }) {
+  const a = data && data.activity;
+  const sig = a && a.kind !== 'slide' && data.event.status === 'live' ? `${a.id}:${a.qIndex || 0}:${(data.run && data.run.phase) === 'question' ? 'q' : ''}` : '';
+  const last = useRef('');
+  useEffect(() => {
+    if (sig && last.current && sig !== last.current) { try { if (navigator.vibrate) navigator.vibrate(70); } catch { /* ok */ } }
+    if (sig) last.current = sig;
+  }, [sig]);
+  return null;
+}
+
+const REACTS = ['👏', '❤️', '🔥', '😂', '💡', '🙌'];
+
+// Reações ao vivo: aparecem flutuando no telão.
+function ReactionBar({ pin, token }) {
+  const [pops, setPops] = useState([]);
+  const [cool, setCool] = useState(false);
+  const send = async (em) => {
+    if (cool) return;
+    setCool(true);
+    setTimeout(() => setCool(false), 1500);
+    const id = Date.now() + Math.random();
+    setPops((p) => [...p, { id, em }]);
+    setTimeout(() => setPops((p) => p.filter((x) => x.id !== id)), 1200);
+    try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* ok */ }
+    await api(`/api/live/${pin}/react`, { method: 'POST', body: { token, emoji: em } });
+  };
+  return (
+    <div className="phone-foot" style={{ position: 'relative' }}>
+      <p className="hint" style={{ textAlign: 'center', marginBottom: 8, fontSize: 14 }}>Reaja ao vivo — aparece no telão</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 }}>
+        {REACTS.map((em) => (
+          <button key={em} onClick={() => send(em)} aria-label={`Reagir com ${em}`} style={{ height: 58, fontSize: 30, borderRadius: 16, border: '2px solid var(--line-2)', background: '#fff', cursor: 'pointer', opacity: cool ? 0.55 : 1, transition: 'opacity .2s' }}>{em}</button>
+        ))}
+      </div>
+      {pops.map((p) => <span key={p.id} className="react-pop" aria-hidden="true">{p.em}</span>)}
+    </div>
+  );
+}
+
 function Live({ pin, data, token }) {
   const ev = data.event;
   const a = data.activity;
   if (ev.status === 'draft') return <Center icon={IconScreen} title="Você está dentro!" text="O evento vai começar em instantes. Deixe esta tela aberta." />;
+  const reacts = <ReactionBar pin={pin} token={token} />;
   if (ev.status === 'ended') return <Center icon={IconCheck} title="Evento encerrado" text="Obrigado pela participação!" />;
-  if (!a || a.kind === 'slide') return <Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />;
+  if (!a || a.kind === 'slide') return <><Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />{reacts}</>;
   if (a.kind === 'quiz') return <QuizPhone key={a.id + ':' + a.qIndex} pin={pin} data={data} token={token} />;
   if (data.paused) return <Center title="Respostas pausadas" text="O palestrante pausou esta atividade. Aguarde." />;
   if (a.kind === 'cloud') return <CloudPhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} />;
@@ -235,9 +294,13 @@ function ChoicePhone({ pin, a, token, index, total }) {
     setBusy(false);
     if (!r.ok && !(r.status === 409 && /já votou/.test(r.error))) { setErr(r.error); return; }
     store.set(key, '1');
+    store.set(key + ':labels', picked.map((i) => a.options[i]).join(' · '));
     setVoted(true);
   };
-  if (voted) return <Center icon={IconCheck} title="Voto registrado!" text="Veja o gráfico se movendo no telão." />;
+  if (voted) {
+    const mine = store.get(key + ':labels');
+    return <Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}. Veja o gráfico se movendo no telão.` : 'Veja o gráfico se movendo no telão.'} />;
+  }
   return (
     <div className="phone-body">
       <Header kind={a.multi ? `Múltipla escolha · até ${a.maxSelect}` : 'Múltipla escolha'} index={index} total={total} question={a.question} />
@@ -252,6 +315,30 @@ function ChoicePhone({ pin, a, token, index, total }) {
       {err ? <div className="alert" role="alert">{err}</div> : null}
       <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || !picked.length}>{busy ? 'Enviando…' : 'Enviar voto'}</button>
     </div>
+  );
+}
+
+// Quem entrou sem nome é convidado a colocar um, para aparecer no ranking do quiz.
+function RankingName({ pin, token }) {
+  const [name, setName] = useState(() => store.get('rg:name') || '');
+  const [saved, setSaved] = useState(() => !!store.get('rg:name'));
+  const [err, setErr] = useState('');
+  if (saved) return null;
+  const save = async (e) => {
+    e.preventDefault();
+    if (name.trim().length < 2) return;
+    const r = await api(`/api/live/${pin}/join`, { method: 'POST', body: { token, name } });
+    if (!r.ok) { setErr(r.error); return; }
+    store.set('rg:name', name.trim());
+    setSaved(true);
+  };
+  return (
+    <form onSubmit={save} className="card stack" style={{ gap: 10, width: '100%', textAlign: 'left', marginTop: 8 }}>
+      <label htmlFor="rk-name" className="label" style={{ fontSize: 16 }}>Como você quer aparecer no ranking?</label>
+      <input id="rk-name" className="input" style={{ fontSize: 18 }} maxLength={40} placeholder="Seu nome ou apelido" value={name} onChange={(e) => setName(e.target.value)} autoComplete="nickname" />
+      {err ? <div className="alert" role="alert">{err}</div> : null}
+      <button className="btn btn-primary btn-block" disabled={name.trim().length < 2}>Salvar nome</button>
+    </form>
   );
 }
 
@@ -301,7 +388,13 @@ function QuizPhone({ pin, data, token }) {
     );
   }
 
-  if (phase === 'ready') return <Center icon={IconScreen} title={`Pergunta ${a.qIndex + 1} de ${a.qTotal}`} text="Prepare-se! A pergunta aparece aqui quando o palestrante liberar." />;
+  if (phase === 'ready') {
+    return (
+      <Center icon={IconScreen} title={`Pergunta ${a.qIndex + 1} de ${a.qTotal}`} text="Prepare-se! A pergunta aparece aqui quando o palestrante liberar.">
+        <RankingName pin={pin} token={token} />
+      </Center>
+    );
+  }
   if (answer !== null) return <Center icon={IconCheck} title="Resposta registrada!" text="Aguarde o palestrante revelar a resposta certa." />;
   if (phase === 'closed') return <Center title="Tempo esgotado" text="Aguarde a revelação da resposta." />;
   if (data.paused) return <Center title="Respostas pausadas" text="O palestrante pausou o quiz. Aguarde." />;

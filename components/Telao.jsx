@@ -414,6 +414,31 @@ function Ended({ title, participants, stats }) {
   );
 }
 
+// Reações do público subindo pela lateral direita do palco.
+function Reactions({ list }) {
+  const seen = useRef(new Set());
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    if (!list || !list.length) return;
+    const fresh = list.filter((r) => !seen.current.has(r.id)).slice(0, 30);
+    if (!fresh.length) return;
+    fresh.forEach((r) => seen.current.add(r.id));
+    if (seen.current.size > 3000) seen.current = new Set(fresh.map((r) => r.id));
+    const born = fresh.map((r, i) => ({ id: r.id, emoji: r.emoji, x: 1060 + Math.random() * 170, delay: i * 0.12 + Math.random() * 0.3, dur: 3.2 + Math.random() * 1.4, size: 40 + Math.random() * 22, sway: (Math.random() * 60 - 30).toFixed(0) }));
+    setItems((cur) => [...cur.slice(-60), ...born]);
+    const ids = new Set(born.map((b) => b.id));
+    const t = setTimeout(() => setItems((cur) => cur.filter((x) => !ids.has(x.id))), 6500);
+    return () => clearTimeout(t);
+  }, [list]);
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 5 }}>
+      {items.map((it) => (
+        <span key={it.id} className="react-float" style={{ position: 'absolute', left: it.x, bottom: -60, fontSize: it.size, animationDuration: it.dur + 's', animationDelay: it.delay + 's', '--sway': it.sway + 'px' }}>{it.emoji}</span>
+      ))}
+    </div>
+  );
+}
+
 export default function Telao({ data, joinUrl, full = false }) {
   const now = useNow(250);
   if (!data) return <Stage full={full}><Backdrop /></Stage>;
@@ -453,6 +478,7 @@ export default function Telao({ data, joinUrl, full = false }) {
   return (
     <Stage full={full}>
       <div key={key} className="stage-in" style={{ position: 'absolute', inset: 0 }}>{screen}</div>
+      {status === 'live' ? <Reactions list={data.reactions} /> : null}
       {paused && status === 'live' && a && a.kind !== 'slide' ? (
         <span style={{ position: 'absolute', top: 32, right: 48, padding: '8px 16px', borderRadius: 999, background: '#F2A93B', color: '#0B2238', fontSize: 18, fontWeight: 700 }}>Respostas pausadas</span>
       ) : null}
