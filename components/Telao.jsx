@@ -27,7 +27,7 @@ export default function Telao({ data, joinUrl, full = false }) {
 
   let body = null;
   if (status !== 'live') {
-    body = <JoinSlide heading={event.title} joinUrl={joinUrl} pin={event.pin} note={status === 'ended' ? 'Evento encerrado. Obrigado pela participação!' : 'O evento vai começar em instantes.'} />;
+    body = <JoinSlide heading={event.title} joinUrl={joinUrl} pin={event.pin} note={status === 'ended' ? '' : 'O evento vai começar em instantes.'} ended={status === 'ended'} />;
   } else if (!a) {
     body = <p style={{ fontSize: 24 }}>Nenhuma atividade.</p>;
   } else if (a.kind === 'slide') {
@@ -111,10 +111,19 @@ function hostOf(u) {
   try { return u ? new URL(u).host : ''; } catch { return ''; }
 }
 
-function JoinSlide({ heading, joinUrl, pin, note }) {
+function JoinSlide({ heading, joinUrl, pin, note, ended }) {
+  if (ended) {
+    return (
+      <div className="slide-white" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '3vh' }}>
+        <img src="/rg-academy-logo.png" alt="RG Academy" style={{ height: '8vh', width: 'auto' }} />
+        <h2 style={{ fontSize: 'clamp(28px, 6vh, 80px)', fontWeight: 800 }}>{heading}</h2>
+        <p style={{ fontSize: 'clamp(18px, 3.2vh, 40px)', fontWeight: 700, color: '#2E7D1E' }}>Obrigado pela participação!</p>
+      </div>
+    );
+  }
   return (
     <div className="slide-white" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '3vh 4vw' }}>
-      {joinUrl ? <QR value={joinUrl} size={800} style={{ width: 'min(46vh, 38vw)', height: 'min(46vh, 38vw)' }} /> : null}
+      {joinUrl && !ended ? <QR value={joinUrl} size={800} style={{ width: 'min(46vh, 38vw)', height: 'min(46vh, 38vw)' }} /> : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2vh', maxWidth: 560 }}>
         <img src="/rg-academy-logo.png" alt="RG Academy" style={{ height: '6vh', width: 'auto', alignSelf: 'flex-start' }} />
         <h2 style={{ fontSize: 'clamp(26px, 5.5vh, 72px)', fontWeight: 800 }}>{heading}</h2>
