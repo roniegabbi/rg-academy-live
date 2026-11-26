@@ -53,7 +53,7 @@ function Stage({ full, children }) {
   );
 }
 
-function Backdrop({ glow = 'right', logo = true, mark = true }) {
+function Backdrop({ glow = 'right', logo = true, mark = false }) {
   const g = glow === 'center'
     ? 'radial-gradient(45% 60% at 50% 55%, rgba(69,176,43,0.26) 0%, rgba(69,176,43,0.06) 45%, rgba(7,24,42,0) 70%)'
     : 'radial-gradient(120% 90% at 78% 8%, rgba(27,74,116,0.85) 0%, rgba(14,42,69,0.5) 45%, rgba(7,24,42,0) 100%)';
