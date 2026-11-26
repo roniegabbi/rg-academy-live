@@ -315,10 +315,19 @@ function ChoiceForm({ c, upd }) {
 function QuizForm({ c, upd }) {
   const qs = c.questions || [];
   const setQ = (i, patch) => upd({ questions: qs.map((q, j) => (j === i ? { ...q, ...patch } : q)) });
-  const addQ = () => upd({ questions: [...qs, { text: '', options: ['', '', '', ''], correct: 0, seconds: 20 }] });
+  const addQ = () => upd({ questions: [...qs, { text: '', options: ['', '', '', ''], correct: 0, seconds: (qs[qs.length - 1] && qs[qs.length - 1].seconds) || 15 }] });
+  const allSame = qs.length && qs.every((q) => Number(q.seconds || 15) === Number(qs[0].seconds || 15));
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <p className="hint">Acertos valem de 500 a 1.000 pontos: quanto mais rápido, mais pontos. O ranking soma todas as perguntas deste quiz.</p>
+      <div className="row" style={{ gap: 10, justifyContent: 'space-between' }}>
+        <p className="hint" style={{ flex: '1 1 300px' }}>Acertos valem de 500 a 1.000 pontos: quanto mais rápido, mais pontos. O ranking soma todas as perguntas deste quiz. Você pode revelar a resposta antes do tempo acabar.</p>
+        <label className="row" style={{ gap: 8, fontSize: 14, fontWeight: 600 }}>Tempo para todas as perguntas
+          <select className="select" style={{ width: 110, padding: '8px 10px' }} value={allSame ? Number(qs[0].seconds || 15) : ''} onChange={(e) => e.target.value && upd({ questions: qs.map((q) => ({ ...q, seconds: Number(e.target.value) })) })}>
+            {!allSame ? <option value="">Variado</option> : null}
+            {[5, 10, 15, 20, 30, 45, 60].map((s) => <option key={s} value={s}>{s}s</option>)}
+          </select>
+        </label>
+      </div>
       {qs.map((q, i) => {
         const opts = [0, 1, 2, 3].map((k) => (q.options || [])[k] || '');
         return (
@@ -327,8 +336,8 @@ function QuizForm({ c, upd }) {
               <span className="eyebrow">Pergunta {i + 1}</span>
               <div className="row" style={{ gap: 6 }}>
                 <label className="row" style={{ gap: 6, fontSize: 14 }}>Tempo
-                  <select className="select" style={{ width: 96, padding: '6px 8px' }} value={q.seconds || 20} onChange={(e) => setQ(i, { seconds: Number(e.target.value) })}>
-                    {[10, 15, 20, 30, 45, 60].map((s) => <option key={s} value={s}>{s}s</option>)}
+                  <select className="select" style={{ width: 96, padding: '6px 8px' }} value={q.seconds || 15} onChange={(e) => setQ(i, { seconds: Number(e.target.value) })}>
+                    {[5, 10, 15, 20, 30, 45, 60].map((s) => <option key={s} value={s}>{s}s</option>)}
                   </select>
                 </label>
                 <button className="btn btn-sm btn-danger" onClick={() => upd({ questions: qs.filter((_, j) => j !== i) })} disabled={qs.length <= 1}>Remover</button>
