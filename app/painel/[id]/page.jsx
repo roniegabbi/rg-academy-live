@@ -45,6 +45,8 @@ export default function Editor() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
   const pdfRef = useRef(null);
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState([]);
 
   const load = async (keepSel) => {
     const r = await api(`/api/events/${id}`);
@@ -84,7 +86,7 @@ export default function Editor() {
 
   const add = async (kind) => {
     if (dirty && !window.confirm('Há alterações não salvas. Descartar?')) return;
-    const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { kind } });
+    const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { kind, after: sel } });
     if (r.ok) await load(r.activities[0].id);
   };
   const dup = async () => {
@@ -93,7 +95,7 @@ export default function Editor() {
   };
   const del = async () => {
     if (!window.confirm(`Excluir "${current.title}"? As respostas dela também serão apagadas.`)) return;
-    await api(`/api/activities/${current.id}`, { method: 'DELETE' });
+    await api(`/api/events/${id}/activities`, { method: 'DELETE', body: { ids: [current.id] } });
     setDirty(false);
     await load();
   };
@@ -105,6 +107,22 @@ export default function Editor() {
     if (!r.ok) { setActs(before); setErr('Não foi possível salvar a nova ordem: ' + r.error); return; }
     setMsg('Ordem atualizada.');
     setTimeout(() => setMsg(''), 1800);
+  };
+  // Seleção de várias atividades para excluir de uma vez.
+  const togglePick = (a) => setPicked((p) => (p.includes(a.id) ? p.filter((x) => x !== a.id) : [...p, a.id]));
+  const stopPicking = () => { setPicking(false); setPicked([]); };
+  const deletePicked = async () => {
+    if (!picked.length) return;
+    if (!window.confirm(`Excluir ${picked.length} ${picked.length === 1 ? 'item' : 'itens'}? As respostas deles também serão apagadas.`)) return;
+    setBusy('del');
+    const r = await api(`/api/events/${id}/activities`, { method: 'DELETE', body: { ids: picked } });
+    setBusy('');
+    if (!r.ok) { setErr(r.error); return; }
+    stopPicking();
+    setDirty(false);
+    await load(picked.includes(sel) ? null : sel);
+    setMsg(`${r.deleted} ${r.deleted === 1 ? 'item excluído' : 'itens excluídos'}.`);
+    setTimeout(() => setMsg(''), 2500);
   };
   const move = async (dir) => {
     const i = acts.findIndex((a) => a.id === sel);
@@ -133,7 +151,7 @@ export default function Editor() {
         const url = await uploadImage(blobs[i]);
         items.push({ kind: 'slide', title: `${file.name.replace(/\.pdf$/i, '')} · pág. ${i + 1}`, config: { mode: 'image', imageUrl: url, heading: '' } });
       }
-      const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { items } });
+      const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { items, after: sel } });
       if (!r.ok) throw new Error(r.error);
       setMsg(`${items.length} páginas importadas como slides.`);
       await load(r.activities[0].id);
@@ -180,22 +198,44 @@ export default function Editor() {
 
         <div className="layout-2">
           <aside className="side card stack" style={{ gap: 8 }}>
-            <span className="eyebrow">Sequência do evento</span>
-            {acts.length > 1 ? <span className="hint" style={{ marginTop: -4 }}>Arraste para mudar a ordem.</span> : null}
+            <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+              <span className="eyebrow">Sequência do evento · {acts.length}</span>
+              {acts.length > 1 ? (
+                picking
+                  ? <button className="btn btn-sm btn-ghost" style={{ padding: '4px 10px', minHeight: 30 }} onClick={stopPicking}>Cancelar</button>
+                  : <button className="btn btn-sm" style={{ padding: '4px 10px', minHeight: 30 }} onClick={() => setPicking(true)}>Selecionar vários</button>
+              ) : null}
+            </div>
+            {picking ? (
+              <div className="stack" style={{ gap: 8, padding: 10, borderRadius: 12, background: '#FFF7E6', position: 'sticky', top: 8, zIndex: 6 }}>
+                <span className="hint">Toque nos itens para marcar. <b>{picked.length}</b> {picked.length === 1 ? 'marcado' : 'marcados'}.</span>
+                <div className="row" style={{ gap: 6 }}>
+                  <button className="btn btn-sm btn-danger" onClick={deletePicked} disabled={!picked.length || busy === 'del'}>{busy === 'del' ? 'Excluindo…' : `Excluir marcados (${picked.length})`}</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setPicked(picked.length ? [] : acts.map((a) => a.id))}>{picked.length ? 'Desmarcar todos' : 'Marcar todos'}</button>
+                </div>
+              </div>
+            ) : acts.length > 1 ? <span className="hint" style={{ marginTop: -4 }}>Arraste para mudar a ordem.</span> : null}
             <SortableList
               items={acts}
-              selectedId={sel}
-              onSelect={choose}
+              selectedId={picking ? null : sel}
+              onSelect={picking ? togglePick : choose}
               onReorder={reorder}
-              renderItem={(a, i) => (
-                <>
-                  <span className="act-num">{i + 1}</span>
-                  <span className="act-meta"><span className="k">{kindLabel(a)}</span><span className="t">{a.title}</span></span>
-                </>
-              )}
+              renderItem={(a, i) => {
+                const thumb = a.kind === 'slide' && a.config && a.config.mode === 'image' && a.config.imageUrl;
+                const on = picking && picked.includes(a.id);
+                return (
+                  <>
+                    {picking ? <span aria-hidden="true" className={'pick-box' + (on ? ' on' : '')}>{on ? '✓' : ''}</span> : null}
+                    <span className="act-num">{i + 1}</span>
+                    {thumb ? <img src={a.config.imageUrl} alt="" loading="lazy" className="act-thumb" /> : null}
+                    <span className="act-meta"><span className="k">{kindLabel(a)}</span><span className="t">{a.title}</span></span>
+                  </>
+                );
+              }}
             />
             {!acts.length ? <p className="muted">Nenhuma atividade. Adicione abaixo.</p> : null}
             <span className="eyebrow" style={{ marginTop: 10 }}>Adicionar atividade</span>
+            {current && acts.length > 1 ? <span className="hint" style={{ marginTop: -4 }}>Entra logo depois de “{current.title.length > 40 ? current.title.slice(0, 40) + '…' : current.title}” (item {acts.findIndex((a) => a.id === sel) + 1}).</span> : null}
             <div className="add-grid">
               {ADD.map((x) => (
                 <button key={x.kind} className="add-btn" onClick={() => add(x.kind)}><b>+ {x.label}</b><span>{x.desc}</span></button>

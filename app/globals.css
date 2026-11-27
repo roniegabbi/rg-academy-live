@@ -211,3 +211,6 @@ p { margin: 0; }
 .sortable-item.dragging { cursor: grabbing; box-shadow: 0 14px 30px rgba(11,34,56,.22); border-color: var(--green) !important; transition: box-shadow .15s; }
 .sortable-item.dragging .drag-handle { cursor: grabbing; }
 .sortable:has(.dragging) .sortable-item:not(.dragging) { transition: transform .15s; }
+.act-thumb { width: 58px; height: 33px; object-fit: cover; border-radius: 6px; flex: none; border: 1px solid var(--line); background: #0B2238; }
+.pick-box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line-2); display: flex; align-items: center; justify-content: center; flex: none; font-size: 14px; font-weight: 800; color: #fff; background: #fff; }
+.pick-box.on { background: var(--red, #D64545); border-color: var(--red, #D64545); }
