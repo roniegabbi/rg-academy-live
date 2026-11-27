@@ -16,7 +16,8 @@ export async function POST(req, { params }) {
   const rows = await sql`
     SELECT p.id AS participant_id FROM participants p JOIN events e ON e.id = p.event_id
     JOIN questions q ON q.event_id = e.id AND q.id = ${qid}::bigint AND q.status = 'approved'
-    WHERE p.token = ${token} AND e.pin = ${pin} AND e.status = 'live'`;
+    WHERE p.token = ${token} AND e.pin = ${pin} AND e.status = 'live'
+      AND (q.participant_id IS NULL OR q.participant_id <> p.id)`;
   if (!rows.length) return error('Não foi possível curtir esta pergunta.', 409);
   const ins = await sql`INSERT INTO question_likes (question_id, participant_id) VALUES (${qid}::bigint, ${rows[0].participant_id}) ON CONFLICT DO NOTHING RETURNING question_id`;
   if (ins.length) await sql`UPDATE questions SET likes = likes + 1 WHERE id = ${qid}::bigint`;

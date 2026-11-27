@@ -70,6 +70,12 @@ function Center({ title, text, icon, children }) {
 const IconScreen = (
   <div className="circle-icon"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#2E7D1E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M12 16v4M8 20h8" /></svg></div>
 );
+const IconPause = (
+  <div className="circle-icon"><svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#2E7D1E" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 6v12M15 6v12" /></svg></div>
+);
+const IconCheckSmall = (
+  <div className="circle-icon" style={{ width: 64, height: 64 }}><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E7D1E" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+);
 const IconCheck = (
   <div className="circle-icon"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#2E7D1E" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
 );
@@ -95,7 +101,7 @@ function Join({ pin, ev, name, setName, onJoin }) {
         <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1 }}>{ev.title}</h1>
         <label htmlFor="nm" className="label" style={{ fontSize: 16, marginTop: 10 }}>{ev.requireName ? 'Seu nome' : 'Seu nome (opcional)'}</label>
         <input id="nm" className="input" style={{ fontSize: 20, padding: '16px 18px' }} placeholder="Ex.: Ana Paula" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} required={ev.requireName} autoComplete="name" />
-        <span className="hint" style={{ fontSize: 14 }}>Aparece no ranking do quiz.</span>
+        <span className="hint" style={{ fontSize: 14 }}>Aparece no ranking do quiz e no sorteio.</span>
         {err ? <div className="alert" role="alert">{err}</div> : null}
       </div>
       <button className="btn btn-primary btn-lg btn-block" disabled={busy}>{busy ? 'Entrando…' : 'Entrar no evento'}</button>
@@ -162,12 +168,13 @@ function ReactionBar({ pin, token }) {
 function Live({ pin, data, token }) {
   const ev = data.event;
   const a = data.activity;
-  if (ev.status === 'draft') return <Center icon={IconScreen} title="Você está dentro!" text="O evento vai começar em instantes. Deixe esta tela aberta." />;
+  const myName = store.get('rg:name');
+  if (ev.status === 'draft') return <Center icon={IconScreen} title={myName ? `${myName.split(' ')[0]}, você está dentro!` : 'Você está dentro!'} text="O evento vai começar em instantes. Deixe esta tela aberta." />;
   const reacts = ev.reactions !== false ? <ReactionBar pin={pin} token={token} /> : null;
   if (ev.status === 'ended') return <Center icon={IconCheck} title="Evento encerrado" text="Obrigado pela participação!" />;
   if (!a || a.kind === 'slide') return <><Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />{reacts}</>;
   if (a.kind === 'quiz') return <QuizPhone key={a.id + ':' + a.qIndex} pin={pin} data={data} token={token} />;
-  if (data.paused) return <Center title="Respostas pausadas" text="O palestrante pausou esta atividade. Aguarde." />;
+  if (data.paused) return <Center icon={IconPause} title="Respostas pausadas" text="O palestrante pausou esta atividade por um instante. Aguarde." />;
   if (a.kind === 'cloud') return <CloudPhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} />;
   if (a.kind === 'choice') return <ChoicePhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} results={data.results} reacts={reacts} />;
   if (a.kind === 'qa') return <QaPhone key={a.id} pin={pin} a={a} token={token} data={data} />;
@@ -175,12 +182,11 @@ function Live({ pin, data, token }) {
   return null;
 }
 
-function Header({ kind, index, total, question }) {
+function Header({ kind, question }) {
   return (
     <>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <span className="phone-kind">{kind}</span>
-        <span className="hint">{index + 1} de {total}</span>
       </div>
       <h1 className="phone-q">{question}</h1>
     </>
@@ -266,7 +272,8 @@ function CloudPhone({ pin, a, token, index, total }) {
   }
   return (
     <form className="phone-body" onSubmit={send}>
-      <Header kind="Mapa de palavras" index={index} total={total} question={a.question} />
+      <Header kind="Mapa de palavras" question={a.question} />
+      <span className="hint" style={{ fontSize: 15, marginTop: -6 }}>Até 3 palavras · uma de cada vez</span>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
         <label htmlFor="w" className="label" style={{ fontSize: 16 }}>Sua palavra</label>
         <input id="w" className="input" style={{ fontSize: 24, fontWeight: 600, padding: 18 }} maxLength={25} value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" />
@@ -285,11 +292,18 @@ function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
   const [voted, setVoted] = useState(() => store.get(key) === '1');
   const [picked, setPicked] = useState([]);
   const [err, setErr] = useState('');
+  const [warn, setWarn] = useState('');
   const [busy, setBusy] = useState(false);
   const toggle = (i) => {
+    setWarn('');
     if (!a.multi) { setPicked([i]); return; }
     if (picked.includes(i)) setPicked(picked.filter((x) => x !== i));
     else if (picked.length < a.maxSelect) setPicked([...picked, i]);
+    else {
+      // Limite atingido: avisa em vez de ignorar o toque.
+      setWarn(`Você já escolheu ${a.maxSelect}. Toque numa marcada para desmarcar e trocar.`);
+      try { if (navigator.vibrate) navigator.vibrate(40); } catch { /* ok */ }
+    }
   };
   const send = async () => {
     setBusy(true);
@@ -306,8 +320,8 @@ function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
     const live = a.showResults !== false && results && Array.isArray(results.counts);
     return (
       <>
-        <Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}.` : 'Veja o gráfico se movendo no telão.'}>
-          {live ? <PhoneBars options={a.options} counts={results.counts} mine={mine ? mine.split(' · ') : []} /> : null}
+        <Center icon={live ? IconCheckSmall : IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}.` : 'Veja o gráfico se movendo no telão.'}>
+          {live ? <PhoneBars options={a.options} counts={results.counts} voters={results.voters} mine={mine ? mine.split(' · ') : []} /> : null}
         </Center>
         {reacts}
       </>
@@ -315,17 +329,21 @@ function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
   }
   return (
     <div className="phone-body">
-      <Header kind={a.multi ? `Múltipla escolha · até ${a.maxSelect}` : 'Múltipla escolha'} index={index} total={total} question={a.question} />
+      <Header kind="Múltipla escolha" question={a.question} />
+      <span className="hint" style={{ fontSize: 15, marginTop: -6 }}>{a.multi ? `Escolha até ${a.maxSelect} opções` : 'Escolha uma opção'}</span>
       <div className="stack" style={{ flex: 1, gap: 10, justifyContent: 'center' }}>
         {a.options.map((o, i) => (
           <button key={i} className={'opt-btn' + (picked.includes(i) ? ' sel' : '')} onClick={() => toggle(i)} aria-pressed={picked.includes(i)}>
-            <span className="opt-box" aria-hidden="true">{picked.includes(i) ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B2238" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : null}</span>
+            <span className={'opt-box' + (a.multi ? '' : ' round')} aria-hidden="true">{picked.includes(i) ? (a.multi ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B2238" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : <span className="dot" />) : null}</span>
             {o}
           </button>
         ))}
       </div>
+      {warn ? <div className="alert" role="status" style={{ background: '#FFF4E0', color: '#7A4B00' }}>{warn}</div> : null}
       {err ? <div className="alert" role="alert">{err}</div> : null}
-      <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || !picked.length}>{busy ? 'Enviando…' : 'Enviar voto'}</button>
+      <div className="phone-sticky">
+        <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || !picked.length}>{busy ? 'Enviando…' : picked.length ? 'Enviar voto' : (a.multi ? 'Escolha ao menos uma opção' : 'Escolha uma opção')}</button>
+      </div>
     </div>
   );
 }
@@ -388,6 +406,7 @@ function QuizPhone({ pin, data, token }) {
           <h1 style={{ fontSize: 36, fontWeight: 800 }}>{!answered ? 'Tempo esgotado' : right ? 'Você acertou!' : 'Não foi dessa vez'}</h1>
           {answered && right && me ? <p style={{ fontSize: 30, fontWeight: 800 }}>+{me.points} pontos</p> : null}
           {answered && !right ? <p style={{ fontSize: 19 }}>Resposta certa: <b>{letters(a.correct)}. {a.options[a.correct]}</b></p> : null}
+          {answered && !right && me && me.option != null ? <p className="muted" style={{ fontSize: 16 }}>Você respondeu {letters(me.option)}. {a.options[me.option]}</p> : null}
         </div>
         {me ? (
           <div className="card stack" style={{ alignItems: 'center', gap: 4 }}>
@@ -410,9 +429,9 @@ function QuizPhone({ pin, data, token }) {
       </Center>
     );
   }
-  if (answer !== null) return <Center icon={IconCheck} title="Resposta registrada!" text="Aguarde o palestrante revelar a resposta certa." />;
+  if (answer !== null) return <Center icon={IconCheck} title="Resposta registrada!" text={`Você respondeu ${letters(answer)}. ${a.options[answer] || ''}. Aguarde a revelação da resposta certa.`} />;
   if (phase === 'closed') return <Center title="Tempo esgotado" text="Aguarde a revelação da resposta." />;
-  if (data.paused) return <Center title="Respostas pausadas" text="O palestrante pausou o quiz. Aguarde." />;
+  if (data.paused) return <Center icon={IconPause} title="Quiz pausado" text="O palestrante pausou o quiz por um instante. Aguarde." />;
 
   const secs = remainingSeconds(data, now);
   const pct = a.seconds ? Math.max(0, Math.min(100, (secs / a.seconds) * 100)) : 0;
@@ -449,7 +468,9 @@ function QaPhone({ pin, a, token, data }) {
   const [err, setErr] = useState('');
   const [flash, setFlash] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bump, setBump] = useState({});
   const list = data.questions || [];
+  const mineIds = new Set(mine.map((m) => m.id));
   const shown = new Set(list.map((q) => q.id));
   const waiting = mine.filter((m) => !shown.has(m.id));
   const MAX = 3;
@@ -468,7 +489,8 @@ function QaPhone({ pin, a, token, data }) {
     setTimeout(() => setFlash(''), 3500);
   };
   const like = async (q) => {
-    if (liked.includes(q.id) || q.status !== 'approved') return;
+    if (liked.includes(q.id) || q.status !== 'approved' || mineIds.has(q.id)) return;
+    setBump((b) => ({ ...b, [q.id]: q.likes + 1 }));
     const next = [...liked, q.id];
     setLiked(next); store.set(likeKey, JSON.stringify(next));
     try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* ok */ }
@@ -498,19 +520,21 @@ function QaPhone({ pin, a, token, data }) {
         </div>
       ) : null}
       <div className="stack" style={{ gap: 8 }}>
-        <span className="eyebrow">{list.length ? 'Curta as que você também quer ouvir' : 'Ainda não há perguntas aprovadas'}</span>
+        <span className="eyebrow">{list.length ? 'Curta as que você também quer ouvir' : 'As perguntas da turma aparecem aqui'}</span>
         {list.map((q) => {
           const on = liked.includes(q.id);
           const done = q.status === 'answered';
+          const own = mineIds.has(q.id);
+          const likes = Math.max(q.likes, bump[q.id] || 0);
           return (
             <div key={q.id} className="card row" style={{ padding: '12px 14px', gap: 12, flexWrap: 'nowrap', alignItems: 'center', opacity: done ? 0.6 : 1 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>{q.text}</div>
-                <div className="hint" style={{ fontSize: 13 }}>{q.author || 'Anônimo'}{done ? ' · respondida' : ''}{mine.some((m) => m.id === q.id) ? ' · sua pergunta' : ''}</div>
+                <div className="hint" style={{ fontSize: 13 }}>{q.author || 'Anônimo'}{done ? ' · respondida' : ''}{own ? ' · sua pergunta' : ''}</div>
               </div>
-              <button onClick={() => like(q)} disabled={on || done} aria-pressed={on} aria-label={on ? `Você curtiu. ${q.likes} curtidas` : `Curtir pergunta. ${q.likes} curtidas`}
-                style={{ flex: 'none', minWidth: 64, height: 48, borderRadius: 14, border: on ? '2px solid #45B02B' : '2px solid var(--line-2)', background: on ? '#E8F6E3' : '#fff', fontSize: 17, fontWeight: 700, cursor: on || done ? 'default' : 'pointer' }}>
-                👍 {q.likes}
+              <button onClick={() => like(q)} disabled={on || done || own} aria-pressed={on} aria-label={own ? `Sua pergunta. ${likes} curtidas` : on ? `Você curtiu. ${likes} curtidas` : `Curtir pergunta. ${likes} curtidas`}
+                style={{ flex: 'none', minWidth: 64, height: 48, borderRadius: 14, border: on ? '2px solid #45B02B' : '2px solid var(--line-2)', background: on ? '#E8F6E3' : own ? '#F4F6F8' : '#fff', fontSize: 17, fontWeight: 700, cursor: on || done || own ? 'default' : 'pointer' }}>
+                👍 {likes}
               </button>
             </div>
           );
@@ -556,7 +580,7 @@ function RafflePhone({ pin, a, token, data }) {
       <div className="phone-body" style={{ background: '#45B02B' }}>
         <div className="phone-center">
           <span style={{ fontSize: 80 }} aria-hidden="true">🏆</span>
-          <h1 style={{ fontSize: 38, fontWeight: 900, color: '#0B2238' }}>Você foi sorteado!</h1>
+          <h1 style={{ fontSize: 38, fontWeight: 900, color: '#0B2238' }}>Você ganhou o sorteio!</h1>
           {a.prize ? <p style={{ fontSize: 20, color: '#0B2238' }}>Prêmio: <b>{a.prize}</b></p> : null}
           <p style={{ fontSize: 17, color: '#0B2238' }}>Procure o palestrante para receber.</p>
         </div>
@@ -566,7 +590,7 @@ function RafflePhone({ pin, a, token, data }) {
   if (winners.length) {
     const last = winners[winners.length - 1];
     return (
-      <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🎉</div>} title={`${last.name} foi sorteado!`} text={winners.length > 1 ? `Já sorteados: ${winners.map((w) => w.name).join(', ')}.` : 'Não foi dessa vez. Fique de olho, pode ter mais sorteio!'} />
+      <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🎉</div>} title={`${last.name} ganhou o sorteio!`} text={winners.length > 1 ? `Já sorteados: ${winners.map((w) => w.name).join(', ')}.` : 'Não foi dessa vez. Fique de olho, pode ter mais sorteio!'} />
     );
   }
   return (
@@ -577,8 +601,9 @@ function RafflePhone({ pin, a, token, data }) {
 }
 
 // Gráfico simples no celular depois do voto.
-function PhoneBars({ options, counts, mine }) {
+function PhoneBars({ options, counts, voters, mine }) {
   const total = counts.reduce((s, n) => s + n, 0);
+  const people = voters != null ? voters : total;
   return (
     <div className="stack" style={{ gap: 8, width: '100%', textAlign: 'left' }}>
       {options.map((o, i) => {
@@ -594,7 +619,7 @@ function PhoneBars({ options, counts, mine }) {
           </div>
         );
       })}
-      <span className="hint" style={{ textAlign: 'center' }}>{total} {total === 1 ? 'voto' : 'votos'} até agora · ao vivo</span>
+      <span className="hint" style={{ textAlign: 'center' }}>{people} {people === 1 ? 'pessoa votou' : 'pessoas votaram'} até agora · ao vivo</span>
     </div>
   );
 }

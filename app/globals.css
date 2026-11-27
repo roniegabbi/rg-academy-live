@@ -216,3 +216,8 @@ p { margin: 0; }
 .pick-box.on { background: var(--red, #D64545); border-color: var(--red, #D64545); }
 @keyframes qrIn { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
 .qr-overlay { animation: qrIn .35s ease-out both; }
+/* Celular: escolha única em círculo, botão principal sempre visível */
+.opt-box.round { border-radius: 50%; }
+.opt-btn.sel .opt-box.round { background: #fff; }
+.opt-box .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green-text); display: block; }
+.phone-sticky { position: sticky; bottom: 0; margin: 0 -20px -20px; padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 18px); z-index: 4; }
