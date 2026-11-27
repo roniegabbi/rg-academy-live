@@ -15,6 +15,8 @@ function responsesOf(data) {
   if (r.kind === 'cloud') return { n: r.total, l: r.total === 1 ? 'palavra enviada' : 'palavras enviadas' };
   if (r.kind === 'choice') return { n: r.voters, l: r.voters === 1 ? 'voto' : 'votos' };
   if (r.kind === 'quiz') return { n: r.answered, l: r.answered === 1 ? 'resposta nesta pergunta' : 'respostas nesta pergunta' };
+  if (r.kind === 'qa') { const n = (r.questions || []).length; return { n, l: n === 1 ? 'pergunta recebida' : 'perguntas recebidas' }; }
+  if (r.kind === 'raffle') return { n: r.eligible, l: r.eligible === 1 ? 'pessoa concorrendo' : 'pessoas concorrendo' };
   return null;
 }
 
@@ -165,6 +167,26 @@ export default function Controle() {
               </div>
             ) : null}
 
+            {live && a && a.kind === 'qa' && data.results && data.results.kind === 'qa' ? (
+              <QaModeration results={data.results} run={run} busy={busy} moderate={a.moderate} />
+            ) : null}
+
+            {live && a && a.kind === 'raffle' && data.results && data.results.kind === 'raffle' ? (
+              <div className="card stack" style={{ gap: 10 }}>
+                <span className="eyebrow">Sorteio</span>
+                {(data.results.winners || []).length ? (
+                  <div className="stack" style={{ gap: 4 }}>
+                    {data.results.winners.map((w, i) => <span key={i}><b>{i + 1}º</b> {w.name}</span>)}
+                  </div>
+                ) : <span className="muted">{data.results.eligible} {data.results.eligible === 1 ? 'pessoa pode' : 'pessoas podem'} ser sorteadas.</span>}
+                <div className="row" style={{ gap: 8 }}>
+                  <button className="btn btn-primary" onClick={() => run('raffleDraw')} disabled={busy || !data.results.eligible}>{(data.results.winners || []).length ? 'Sortear mais um' : 'Sortear agora'}</button>
+                  {(data.results.winners || []).length ? <button className="btn btn-ghost" onClick={() => window.confirm('Apagar os sorteados e recomeçar o sorteio?') && run('raffleReset')} disabled={busy}>Recomeçar</button> : null}
+                </div>
+                <span className="hint">Quem já ganhou não é sorteado de novo.</span>
+              </div>
+            ) : null}
+
             <div className="card stack" style={{ gap: 4, background: '#FAFBFC' }}>
               <span className="eyebrow">{live ? 'A seguir' : 'Primeira atividade'}</span>
               {upcoming ? (
@@ -199,5 +221,55 @@ export default function Controle() {
         </section>
       </main>
     </>
+  );
+}
+
+// Moderação das perguntas do público: aprovar, destacar no telão, marcar como respondida.
+function QaModeration({ results, run, busy, moderate }) {
+  const qs = results.questions || [];
+  const pending = qs.filter((q) => q.status === 'pending');
+  const approved = qs.filter((q) => q.status === 'approved');
+  const answered = qs.filter((q) => q.status === 'answered');
+  const hl = results.highlight;
+  const small = { padding: '4px 10px', minHeight: 32, fontSize: 13 };
+  return (
+    <div className="card stack" style={{ gap: 10 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="eyebrow">Perguntas do público</span>
+        {hl ? <button className="btn btn-sm" style={small} onClick={() => run('qaHighlight', { questionId: '' })} disabled={busy}>Voltar para a lista</button> : null}
+      </div>
+      {moderate && pending.length ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="hint"><b>{pending.length}</b> aguardando aprovação</span>
+          {pending.map((q) => (
+            <div key={q.id} className="stack" style={{ gap: 6, padding: 10, borderRadius: 10, background: '#FFF7E6' }}>
+              <span style={{ fontSize: 14 }}>{q.text} <span className="muted">— {q.author || 'Anônimo'}</span></span>
+              <div className="row" style={{ gap: 6 }}>
+                <button className="btn btn-sm btn-primary" style={small} onClick={() => run('qaApprove', { questionId: q.id })} disabled={busy}>Aprovar</button>
+                <button className="btn btn-sm" style={small} onClick={() => run('qaHighlight', { questionId: q.id })} disabled={busy}>Aprovar e destacar</button>
+                <button className="btn btn-sm btn-ghost btn-danger" style={small} onClick={() => run('qaHide', { questionId: q.id })} disabled={busy}>Recusar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {approved.length ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="hint">No telão, por curtidas · toque em Destacar para mostrar uma em tela cheia</span>
+          {approved.map((q) => (
+            <div key={q.id} className="stack" style={{ gap: 6, padding: 10, borderRadius: 10, background: hl === q.id ? 'var(--green-soft)' : '#F4F6F8' }}>
+              <span style={{ fontSize: 14 }}><b>👍 {q.likes}</b> · {q.text} <span className="muted">— {q.author || 'Anônimo'}</span></span>
+              <div className="row" style={{ gap: 6 }}>
+                {hl === q.id ? <span className="tag tag-live" style={{ fontSize: 12 }}>No telão</span> : <button className="btn btn-sm" style={small} onClick={() => run('qaHighlight', { questionId: q.id })} disabled={busy}>Destacar</button>}
+                <button className="btn btn-sm" style={small} onClick={() => run('qaAnswered', { questionId: q.id })} disabled={busy}>Respondida ✓</button>
+                <button className="btn btn-sm btn-ghost btn-danger" style={small} onClick={() => run('qaHide', { questionId: q.id })} disabled={busy}>Ocultar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {!pending.length && !approved.length ? <span className="muted">{answered.length ? 'Todas as perguntas foram respondidas.' : 'Nenhuma pergunta ainda.'}</span> : null}
+      {answered.length ? <span className="hint">{answered.length} {answered.length === 1 ? 'respondida' : 'respondidas'}</span> : null}
+    </div>
   );
 }

@@ -161,13 +161,15 @@ function Live({ pin, data, token }) {
   const ev = data.event;
   const a = data.activity;
   if (ev.status === 'draft') return <Center icon={IconScreen} title="Você está dentro!" text="O evento vai começar em instantes. Deixe esta tela aberta." />;
-  const reacts = <ReactionBar pin={pin} token={token} />;
+  const reacts = ev.reactions !== false ? <ReactionBar pin={pin} token={token} /> : null;
   if (ev.status === 'ended') return <Center icon={IconCheck} title="Evento encerrado" text="Obrigado pela participação!" />;
   if (!a || a.kind === 'slide') return <><Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />{reacts}</>;
   if (a.kind === 'quiz') return <QuizPhone key={a.id + ':' + a.qIndex} pin={pin} data={data} token={token} />;
   if (data.paused) return <Center title="Respostas pausadas" text="O palestrante pausou esta atividade. Aguarde." />;
   if (a.kind === 'cloud') return <CloudPhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} />;
-  if (a.kind === 'choice') return <ChoicePhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} />;
+  if (a.kind === 'choice') return <ChoicePhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} results={data.results} reacts={reacts} />;
+  if (a.kind === 'qa') return <QaPhone key={a.id} pin={pin} a={a} token={token} data={data} />;
+  if (a.kind === 'raffle') return <RafflePhone key={a.id} pin={pin} a={a} token={token} data={data} />;
   return null;
 }
 
@@ -276,7 +278,7 @@ function CloudPhone({ pin, a, token, index, total }) {
   );
 }
 
-function ChoicePhone({ pin, a, token, index, total }) {
+function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
   const key = `rg:${pin}:${a.id}:voted`;
   const [voted, setVoted] = useState(() => store.get(key) === '1');
   const [picked, setPicked] = useState([]);
@@ -299,7 +301,15 @@ function ChoicePhone({ pin, a, token, index, total }) {
   };
   if (voted) {
     const mine = store.get(key + ':labels');
-    return <><Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}. Veja o gráfico se movendo no telão.` : 'Veja o gráfico se movendo no telão.'} /><ReactionBar pin={pin} token={token} /></>;
+    const live = a.showResults !== false && results && Array.isArray(results.counts);
+    return (
+      <>
+        <Center icon={IconCheck} title="Voto registrado!" text={mine ? `Você votou em: ${mine}.` : 'Veja o gráfico se movendo no telão.'}>
+          {live ? <PhoneBars options={a.options} counts={results.counts} mine={mine ? mine.split(' · ') : []} /> : null}
+        </Center>
+        {reacts}
+      </>
+    );
   }
   return (
     <div className="phone-body">
@@ -319,7 +329,7 @@ function ChoicePhone({ pin, a, token, index, total }) {
 }
 
 // Quem entrou sem nome é convidado a colocar um, para aparecer no ranking do quiz.
-function RankingName({ pin, token }) {
+function RankingName({ pin, token, label = 'Como você quer aparecer no ranking?' }) {
   const [name, setName] = useState(() => store.get('rg:name') || '');
   const [saved, setSaved] = useState(() => !!store.get('rg:name'));
   const [err, setErr] = useState('');
@@ -334,7 +344,7 @@ function RankingName({ pin, token }) {
   };
   return (
     <form onSubmit={save} className="card stack" style={{ gap: 10, width: '100%', textAlign: 'left', marginTop: 8 }}>
-      <label htmlFor="rk-name" className="label" style={{ fontSize: 16 }}>Como você quer aparecer no ranking?</label>
+      <label htmlFor="rk-name" className="label" style={{ fontSize: 16 }}>{label}</label>
       <input id="rk-name" className="input" style={{ fontSize: 18 }} maxLength={40} placeholder="Seu nome ou apelido" value={name} onChange={(e) => setName(e.target.value)} autoComplete="nickname" />
       {err ? <div className="alert" role="alert">{err}</div> : null}
       <button className="btn btn-primary btn-block" disabled={name.trim().length < 2}>Salvar nome</button>
@@ -382,6 +392,9 @@ function QuizPhone({ pin, data, token }) {
             <span className="muted">Sua posição no ranking</span>
             <span style={{ fontSize: 44, fontWeight: 800 }}>{me.position}º <span style={{ fontSize: 18, color: '#4A5D70', fontWeight: 600 }}>de {me.players}</span></span>
             <span className="muted">{me.score} pontos no total</span>
+            {me.streak >= 2 ? <span style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>🔥 {me.streak} acertos seguidos!</span> : null}
+            {me.position > 1 && me.gap > 0 ? <span className="hint" style={{ fontSize: 15 }}>Faltam {me.gap} pontos para passar o {me.position - 1}º lugar</span> : null}
+            {me.position === 1 && me.score > 0 ? <span style={{ fontSize: 16, fontWeight: 700, color: '#2E7D1E' }}>Você está na liderança! 🏆</span> : null}
           </div>
         ) : null}
       </div>
@@ -418,6 +431,168 @@ function QuizPhone({ pin, data, token }) {
       </div>
       {err ? <div className="alert" role="alert">{err}</div> : null}
       <p className="hint" style={{ textAlign: 'center', fontSize: 15 }}>Toque numa opção · quanto mais rápido, mais pontos</p>
+    </div>
+  );
+}
+
+// Perguntas ao palestrante: enviar, ver as aprovadas e curtir.
+function QaPhone({ pin, a, token, data }) {
+  const mineKey = `rg:${pin}:${a.id}:asked`;
+  const likeKey = `rg:${pin}:${a.id}:liked`;
+  const read = (k) => { try { return JSON.parse(store.get(k) || '[]'); } catch { return []; } };
+  const [mine, setMine] = useState(() => read(mineKey));
+  const [liked, setLiked] = useState(() => read(likeKey));
+  const [text, setText] = useState('');
+  const [anon, setAnon] = useState(false);
+  const [err, setErr] = useState('');
+  const [flash, setFlash] = useState('');
+  const [busy, setBusy] = useState(false);
+  const list = data.questions || [];
+  const shown = new Set(list.map((q) => q.id));
+  const waiting = mine.filter((m) => !shown.has(m.id));
+  const MAX = 3;
+
+  const send = async (e) => {
+    e.preventDefault();
+    if (text.trim().length < 5) return;
+    setBusy(true); setErr('');
+    const r = await api(`/api/live/${pin}/ask`, { method: 'POST', body: { token, activityId: a.id, text, anonymous: anon } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    const next = [...mine, { id: r.id, text: text.trim() }];
+    setMine(next); store.set(mineKey, JSON.stringify(next));
+    setText('');
+    setFlash(r.status === 'pending' ? 'Pergunta enviada! Ela aparece aqui quando o palestrante aprovar.' : 'Pergunta enviada!');
+    setTimeout(() => setFlash(''), 3500);
+  };
+  const like = async (q) => {
+    if (liked.includes(q.id) || q.status !== 'approved') return;
+    const next = [...liked, q.id];
+    setLiked(next); store.set(likeKey, JSON.stringify(next));
+    try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* ok */ }
+    await api(`/api/live/${pin}/like`, { method: 'POST', body: { token, questionId: q.id } });
+  };
+
+  return (
+    <div className="phone-body" style={{ gap: 14 }}>
+      <Header kind="Perguntas ao palestrante" index={data.index} total={data.total} question={a.question} />
+      {mine.length < MAX ? (
+        <form onSubmit={send} className="stack" style={{ gap: 8 }}>
+          <label htmlFor="qa-t" className="label" style={{ fontSize: 16 }}>Sua pergunta</label>
+          <textarea id="qa-t" className="textarea" style={{ fontSize: 18, minHeight: 96 }} maxLength={200} value={text} onChange={(e) => setText(e.target.value)} placeholder="Escreva aqui…" />
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <label className="check" style={{ fontSize: 15 }}><input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} />Enviar sem meu nome</label>
+            <span className="hint">{text.length} / 200</span>
+          </div>
+          <button className="btn btn-primary btn-lg btn-block" disabled={busy || text.trim().length < 5}>{busy ? 'Enviando…' : 'Enviar pergunta'}</button>
+        </form>
+      ) : <p className="hint" style={{ fontSize: 15 }}>Você já enviou {MAX} perguntas. Agora é só curtir as dos colegas.</p>}
+      {flash ? <div className="ok-box" role="status" style={{ fontWeight: 600 }}>{flash}</div> : null}
+      {err ? <div className="alert" role="alert">{err}</div> : null}
+      {waiting.length && a.moderate ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="eyebrow">Aguardando aprovação</span>
+          {waiting.map((m) => <div key={m.id} className="card" style={{ padding: '10px 14px', fontSize: 15, color: 'var(--muted)' }}>{m.text}</div>)}
+        </div>
+      ) : null}
+      <div className="stack" style={{ gap: 8 }}>
+        <span className="eyebrow">{list.length ? 'Curta as que você também quer ouvir' : 'Ainda não há perguntas aprovadas'}</span>
+        {list.map((q) => {
+          const on = liked.includes(q.id);
+          const done = q.status === 'answered';
+          return (
+            <div key={q.id} className="card row" style={{ padding: '12px 14px', gap: 12, flexWrap: 'nowrap', alignItems: 'center', opacity: done ? 0.6 : 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>{q.text}</div>
+                <div className="hint" style={{ fontSize: 13 }}>{q.author || 'Anônimo'}{done ? ' · respondida' : ''}{mine.some((m) => m.id === q.id) ? ' · sua pergunta' : ''}</div>
+              </div>
+              <button onClick={() => like(q)} disabled={on || done} aria-pressed={on} aria-label={on ? `Você curtiu. ${q.likes} curtidas` : `Curtir pergunta. ${q.likes} curtidas`}
+                style={{ flex: 'none', minWidth: 64, height: 48, borderRadius: 14, border: on ? '2px solid #45B02B' : '2px solid var(--line-2)', background: on ? '#E8F6E3' : '#fff', fontSize: 17, fontWeight: 700, cursor: on || done ? 'default' : 'pointer' }}>
+                👍 {q.likes}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// SHA-256 do token (os mesmos 12 caracteres que o servidor usa para marcar o sorteado).
+function useMyTag(token) {
+  const [tag, setTag] = useState('');
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+        const hex = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+        if (!off) setTag(hex.slice(0, 12));
+      } catch { /* navegador sem suporte */ }
+    })();
+    return () => { off = true; };
+  }, [token]);
+  return tag;
+}
+
+function RafflePhone({ pin, a, token, data }) {
+  const tag = useMyTag(token);
+  const winners = data.winners || [];
+  const drawnAt = (data.run && data.run.drawnAt) || 0;
+  const now = useNow(500);
+  const offset = (data.serverNow || data._recv || now) - (data._recv || now);
+  const rolling = drawnAt && now + offset - drawnAt < 3600;
+  const me = tag && winners.find((w) => w.tag === tag);
+  const buzzed = useRef(false);
+  useEffect(() => {
+    if (me && !rolling && !buzzed.current) { buzzed.current = true; try { if (navigator.vibrate) navigator.vibrate([120, 80, 120, 80, 300]); } catch { /* ok */ } }
+  }, [me, rolling]);
+
+  if (rolling) return <Center title="Sorteando…" text="Olhe para o telão!" icon={<div className="circle-icon" style={{ fontSize: 48 }}>🎲</div>} />;
+  if (me) {
+    return (
+      <div className="phone-body" style={{ background: '#45B02B' }}>
+        <div className="phone-center">
+          <span style={{ fontSize: 80 }} aria-hidden="true">🏆</span>
+          <h1 style={{ fontSize: 38, fontWeight: 900, color: '#0B2238' }}>Você foi sorteado!</h1>
+          {a.prize ? <p style={{ fontSize: 20, color: '#0B2238' }}>Prêmio: <b>{a.prize}</b></p> : null}
+          <p style={{ fontSize: 17, color: '#0B2238' }}>Procure o palestrante para receber.</p>
+        </div>
+      </div>
+    );
+  }
+  if (winners.length) {
+    const last = winners[winners.length - 1];
+    return (
+      <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🎉</div>} title={`${last.name} foi sorteado!`} text={winners.length > 1 ? `Já sorteados: ${winners.map((w) => w.name).join(', ')}.` : 'Não foi dessa vez. Fique de olho, pode ter mais sorteio!'} />
+    );
+  }
+  return (
+    <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🍀</div>} title="Você está concorrendo!" text={a.prize ? `Prêmio: ${a.prize}. O sorteio acontece no telão.` : 'O sorteio acontece no telão. Boa sorte!'}>
+      {a.onlyNamed ? <RankingName pin={pin} token={token} label="Só participa quem tem nome. Como você se chama?" /> : null}
+    </Center>
+  );
+}
+
+// Gráfico simples no celular depois do voto.
+function PhoneBars({ options, counts, mine }) {
+  const total = counts.reduce((s, n) => s + n, 0);
+  return (
+    <div className="stack" style={{ gap: 8, width: '100%', textAlign: 'left' }}>
+      {options.map((o, i) => {
+        const pct = total ? Math.round(((counts[i] || 0) / total) * 100) : 0;
+        const isMine = mine.includes(o);
+        return (
+          <div key={i} style={{ position: 'relative', borderRadius: 12, background: '#EEF2F5', overflow: 'hidden', minHeight: 46 }}>
+            <div style={{ position: 'absolute', inset: 0, width: pct + '%', background: isMine ? '#9FDB8A' : '#CFE3F5', transition: 'width .8s cubic-bezier(.2,.8,.2,1)' }} />
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '12px 14px', fontSize: 16 }}>
+              <span style={{ fontWeight: isMine ? 700 : 500 }}>{o}{isMine ? ' ✓' : ''}</span>
+              <b>{pct}%</b>
+            </div>
+          </div>
+        );
+      })}
+      <span className="hint" style={{ textAlign: 'center' }}>{total} {total === 1 ? 'voto' : 'votos'} até agora · ao vivo</span>
     </div>
   );
 }

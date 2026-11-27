@@ -12,7 +12,9 @@ const ADD = [
   { kind: 'slide', label: 'Slide', desc: 'Texto, imagem ou vídeo' },
   { kind: 'cloud', label: 'Mapa de palavras', desc: 'O público responde com palavras' },
   { kind: 'choice', label: 'Múltipla escolha', desc: 'Gráfico ao vivo no telão' },
-  { kind: 'quiz', label: 'Quiz competitivo', desc: 'Perguntas com tempo e ranking' }
+  { kind: 'quiz', label: 'Quiz competitivo', desc: 'Perguntas com tempo e ranking' },
+  { kind: 'qa', label: 'Perguntas ao palestrante', desc: 'O público pergunta e curte' },
+  { kind: 'raffle', label: 'Sorteio', desc: 'Sorteia um participante no telão' }
 ];
 
 function autoTitle(kind, c) {
@@ -26,6 +28,8 @@ function autoTitle(kind, c) {
     const first = ((c.questions || [])[0] || {}).text || '';
     return n > 1 ? `Quiz · ${n} perguntas` : (first.trim() || 'Quiz');
   }
+  if (kind === 'qa') return (c.question || '').trim() || 'Perguntas ao palestrante';
+  if (kind === 'raffle') return c.prize ? `Sorteio: ${c.prize}`.slice(0, 140) : 'Sorteio';
   return 'Atividade';
 }
 
@@ -101,7 +105,7 @@ export default function Editor() {
   };
 
   const saveEvent = async (patch) => {
-    setEv({ ...ev, ...(patch.title !== undefined ? { title: patch.title } : {}), ...(patch.requireName !== undefined ? { require_name: patch.requireName } : {}) });
+    setEv({ ...ev, ...(patch.title !== undefined ? { title: patch.title } : {}), ...(patch.requireName !== undefined ? { require_name: patch.requireName } : {}), ...(patch.reactionsOn !== undefined ? { reactions_on: patch.reactionsOn } : {}) });
     await api(`/api/events/${id}`, { method: 'PATCH', body: patch });
   };
 
@@ -151,6 +155,10 @@ export default function Editor() {
           <label className="check" style={{ minHeight: 44 }}>
             <input type="checkbox" checked={!!ev.require_name} onChange={(e) => saveEvent({ requireName: e.target.checked })} />
             Exigir nome do participante
+          </label>
+          <label className="check" style={{ minHeight: 44 }} title="Barra de emojis no celular que aparecem flutuando no telão">
+            <input type="checkbox" checked={ev.reactions_on !== false} onChange={(e) => saveEvent({ reactionsOn: e.target.checked })} />
+            Reações ao vivo (👏 ❤️ 🔥)
           </label>
           <div className="row" style={{ gap: 8 }}>
             <Link className="btn btn-primary" href={`/painel/${id}/controle`}>Apresentar evento</Link>
@@ -202,6 +210,8 @@ export default function Editor() {
                 {current.kind === 'cloud' ? <CloudForm c={draft} upd={upd} /> : null}
                 {current.kind === 'choice' ? <ChoiceForm c={draft} upd={upd} /> : null}
                 {current.kind === 'quiz' ? <QuizForm c={draft} upd={upd} /> : null}
+                {current.kind === 'qa' ? <QaForm c={draft} upd={upd} /> : null}
+                {current.kind === 'raffle' ? <RaffleForm c={draft} upd={upd} /> : null}
 
                 <div className="row" style={{ justifyContent: 'flex-end', borderTop: '1px solid var(--line)', paddingTop: 14 }}>
                   {dirty ? <span className="hint">Alterações não salvas</span> : null}
@@ -310,6 +320,7 @@ function ChoiceForm({ c, upd }) {
         {opts.length < 10 ? <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => upd({ options: [...opts, ''] })}>+ Adicionar alternativa</button> : null}
       </div>
       <label className="check"><input type="checkbox" checked={!!c.multi} onChange={(e) => upd({ multi: e.target.checked, maxSelect: e.target.checked ? Math.min(2, opts.length) : 1 })} />Permitir escolher mais de uma opção</label>
+      <label className="check"><input type="checkbox" checked={c.showResults !== false} onChange={(e) => upd({ showResults: e.target.checked })} />Mostrar o gráfico no celular de quem já votou</label>
       {c.multi ? (
         <div className="field" style={{ maxWidth: 260 }}><label htmlFor="m-max">Máximo de opções por pessoa</label><input id="m-max" type="number" min={1} max={opts.length} className="input" value={c.maxSelect || 2} onChange={(e) => upd({ maxSelect: e.target.value })} /></div>
       ) : null}
@@ -369,6 +380,26 @@ function QuizForm({ c, upd }) {
         );
       })}
       <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={addQ}>+ Adicionar pergunta</button>
+    </div>
+  );
+}
+
+function QaForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="qa-q">Chamada para o público</label><input id="qa-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Cada pessoa pode enviar até 3 perguntas e curtir as dos colegas. As mais curtidas sobem no telão.</span></div>
+      <label className="check"><input type="checkbox" checked={c.moderate !== false} onChange={(e) => upd({ moderate: e.target.checked })} />Aprovar as perguntas antes de aparecerem (recomendado)</label>
+      <p className="hint">Durante o evento, no painel de controle, você aprova, destaca uma pergunta em tela cheia no telão e marca como respondida.</p>
+    </div>
+  );
+}
+
+function RaffleForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="rf-p">Prêmio (opcional)</label><input id="rf-p" className="input" placeholder="Ex.: Um livro autografado" value={c.prize || ''} maxLength={80} onChange={(e) => upd({ prize: e.target.value })} /></div>
+      <label className="check"><input type="checkbox" checked={c.onlyNamed !== false} onChange={(e) => upd({ onlyNamed: e.target.checked })} />Sortear só quem entrou com nome</label>
+      <p className="hint">No telão, os nomes giram por alguns segundos até parar no sorteado. O celular do ganhador avisa e vibra. Você pode sortear mais de uma pessoa; quem já ganhou não sai de novo.</p>
     </div>
   );
 }

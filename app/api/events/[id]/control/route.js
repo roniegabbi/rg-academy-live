@@ -70,7 +70,8 @@ export async function POST(req, { params }) {
     case 'clearActivity': {
       const act = acts[index];
       if (act) await sql`DELETE FROM responses WHERE activity_id = ${act.id}`;
-      if (act && act.kind === 'quiz') run = initialRun(act);
+      if (act && act.kind === 'qa') await sql`DELETE FROM questions WHERE activity_id = ${act.id}`;
+      if (act && (act.kind === 'quiz' || act.kind === 'qa' || act.kind === 'raffle')) run = initialRun(act);
       break;
     }
     case 'hideWord':
@@ -88,8 +89,47 @@ export async function POST(req, { params }) {
       act.config = cfg;
       break;
     }
+    case 'qaApprove':
+    case 'qaHide':
+    case 'qaAnswered':
+    case 'qaHighlight': {
+      const act = acts[index];
+      if (!act || act.kind !== 'qa') return error('A atividade atual não é de perguntas.');
+      const qid = String(body.questionId || '');
+      if (action === 'qaHighlight' && !qid) { run = { ...run, highlight: null }; break; }
+      if (!/^\d{1,18}$/.test(qid)) return error('Pergunta inválida.');
+      const st = { qaApprove: 'approved', qaHide: 'hidden', qaAnswered: 'answered', qaHighlight: 'approved' }[action];
+      const upd = await sql`UPDATE questions SET status = ${st} WHERE id = ${qid}::bigint AND activity_id = ${act.id} RETURNING id::text AS id`;
+      if (!upd.length) return error('Pergunta não encontrada.');
+      if (action === 'qaHighlight') run = { ...run, highlight: qid };
+      else if (run.highlight === qid) run = { ...run, highlight: null };
+      break;
+    }
+    case 'raffleDraw': {
+      const act = acts[index];
+      if (!act || act.kind !== 'raffle') return error('A atividade atual não é um sorteio.');
+      const onlyNamed = !(act.config && act.config.onlyNamed === false);
+      // Sorteia entre quem ainda não ganhou (os ganhadores ficam gravados como respostas da atividade).
+      const pick = await sql`SELECT p.id FROM participants p
+        WHERE p.event_id = ${id} AND (${!onlyNamed} OR length(trim(p.name)) >= 2)
+          AND NOT EXISTS (SELECT 1 FROM responses r WHERE r.activity_id = ${act.id} AND r.participant_id = p.id)
+        ORDER BY random() LIMIT 1`;
+      if (!pick.length) return error(onlyNamed ? 'Não há mais participantes com nome para sortear.' : 'Não há mais participantes para sortear.');
+      await sql`INSERT INTO responses (event_id, activity_id, participant_id, text_value) VALUES (${id}, ${act.id}, ${pick[0].id}, 'Sorteado')`;
+      run = { drawnAt: Date.now() };
+      break;
+    }
+    case 'raffleReset': {
+      const act = acts[index];
+      if (!act || act.kind !== 'raffle') return error('A atividade atual não é um sorteio.');
+      await sql`DELETE FROM responses WHERE activity_id = ${act.id}`;
+      run = {};
+      break;
+    }
     case 'clearEvent':
       await sql`DELETE FROM responses WHERE event_id = ${id}`;
+      await sql`DELETE FROM questions WHERE event_id = ${id}`;
+      await sql`DELETE FROM reactions WHERE event_id = ${id}`;
       await sql`DELETE FROM participants WHERE event_id = ${id}`;
       status = 'draft';
       goTo(0);

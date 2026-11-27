@@ -21,8 +21,9 @@ export async function PATCH(req, { params }) {
   const body = await readJson(req);
   const title = body.title !== undefined ? String(body.title).trim().slice(0, 140) || o.event.title : o.event.title;
   const requireName = body.requireName !== undefined ? !!body.requireName : o.event.require_name;
+  const reactionsOn = body.reactionsOn !== undefined ? !!body.reactionsOn : o.event.reactions_on !== false;
   const sql = db();
-  await sql`UPDATE events SET title = ${title}, require_name = ${requireName}, updated_at = now() WHERE id = ${id}`;
+  await sql`UPDATE events SET title = ${title}, require_name = ${requireName}, reactions_on = ${reactionsOn}, updated_at = now() WHERE id = ${id}`;
   return json({ ok: true });
 }
 

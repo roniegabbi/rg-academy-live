@@ -414,6 +414,141 @@ function Ended({ title, participants, stats }) {
   );
 }
 
+/* ---------- perguntas ao palestrante ---------- */
+
+function QaScreen({ a, run, results, foot }) {
+  const all = (results && results.questions) || [];
+  const hl = run.highlight ? all.find((q) => q.id === run.highlight) : null;
+  if (hl) {
+    const size = hl.text.length > 140 ? 46 : hl.text.length > 80 ? 56 : 68;
+    return (
+      <>
+        <Backdrop glow="center" />
+        <div style={{ position: 'absolute', left: 120, right: 120, top: 110, bottom: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Pergunta do público</span>
+          <div style={{ position: 'relative' }}>
+            <span aria-hidden="true" style={{ position: 'absolute', left: -78, top: -46, fontSize: 160, lineHeight: 1, fontWeight: 900, color: 'rgba(127,211,95,0.35)' }}>“</span>
+            <h1 style={{ margin: 0, fontSize: size, lineHeight: 1.12, fontWeight: 700, letterSpacing: '-0.01em' }}>{hl.text}</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontSize: 24, color: '#C9D6E2' }}>
+            <span>— <strong style={{ color: '#fff' }}>{hl.author || 'Anônimo'}</strong></span>
+            {hl.likes ? <span style={{ padding: '6px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.1)' }}>👍 {hl.likes}</span> : null}
+          </div>
+        </div>
+        {foot}
+      </>
+    );
+  }
+  const list = all.filter((q) => q.status === 'approved').slice(0, 5);
+  const count = all.filter((q) => q.status !== 'pending').length;
+  return (
+    <>
+      <Backdrop />
+      <Question eyebrow="Perguntas ao palestrante" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{count}</strong> {count === 1 ? 'pergunta' : 'perguntas'}</Pill>} />
+      <div style={{ position: 'absolute', left: 48, right: 48, top: 230, bottom: 100, display: 'flex', flexDirection: 'column', justifyContent: list.length ? 'flex-start' : 'center', gap: 12 }}>
+        {list.length ? list.map((q, i) => (
+          <div key={q.id} className="stage-in" style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '14px 22px', borderRadius: 16, background: i === 0 ? 'rgba(69,176,43,0.16)' : 'rgba(255,255,255,0.07)', border: i === 0 ? '1px solid rgba(127,211,95,0.35)' : '1px solid transparent' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: q.text.length > 110 ? 21 : 25, fontWeight: 600, lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{q.text}</div>
+              <div style={{ fontSize: 16, color: '#9FB3C6', marginTop: 4 }}>{q.author || 'Anônimo'}</div>
+            </div>
+            <span style={{ flex: 'none', fontSize: 26, fontWeight: 800, color: i === 0 ? '#7FD35F' : '#fff' }}>👍 {q.likes}</span>
+          </div>
+        )) : (
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+            <span style={{ fontSize: 72 }} aria-hidden="true">💬</span>
+            <p style={{ margin: 0, fontSize: 34, fontWeight: 600 }}>Envie sua pergunta pelo celular</p>
+            <p style={{ margin: 0, fontSize: 22, color: '#9FB3C6' }}>As mais curtidas sobem para o topo.</p>
+          </div>
+        )}
+      </div>
+      {foot}
+    </>
+  );
+}
+
+/* ---------- sorteio ---------- */
+
+function RaffleScreen({ a, run, results, data, now, foot }) {
+  const winners = (results && results.winners) || [];
+  const names = (results && results.names) || [];
+  const latest = winners[winners.length - 1];
+  const serverNow = now + ((data.serverNow || data._recv || now) - (data._recv || now));
+  const elapsed = run.drawnAt ? serverNow - run.drawnAt : Infinity;
+  const ROLL = 3600;
+  const prize = a.prize ? <span style={{ fontSize: 22, color: '#C9D6E2' }}>Prêmio: <strong style={{ color: '#fff' }}>{a.prize}</strong></span> : null;
+
+  if (!latest) {
+    const n = (results && results.eligible) || 0;
+    return (
+      <>
+        <Backdrop glow="center" />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, textAlign: 'center', paddingBottom: 40 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Sorteio</span>
+          <h1 style={{ margin: 0, fontSize: 84, lineHeight: 1, fontWeight: 800, letterSpacing: '-0.02em', maxWidth: 1080 }}>{a.prize || 'Quem será o sortudo?'}</h1>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 10 }}>
+            <span style={{ fontSize: 96, fontWeight: 800, color: '#7FD35F', lineHeight: 1 }}>{n}</span>
+            <span style={{ fontSize: 28, color: '#C9D6E2' }}>{n === 1 ? 'pessoa concorrendo' : 'pessoas concorrendo'}</span>
+          </div>
+          {a.onlyNamed ? <p style={{ margin: 0, fontSize: 20, color: '#9FB3C6' }}>Participa quem entrou com o nome. Ainda dá tempo: leia o QR code.</p> : null}
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (elapsed >= 0 && elapsed < ROLL && names.length) {
+    const t = elapsed;
+    const step = Math.floor(t / (55 + t / 14));
+    const shown = names[step % names.length];
+    return (
+      <>
+        <Backdrop glow="center" />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 26, textAlign: 'center' }}>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Sorteando…</span>
+          <div style={{ padding: '26px 60px', borderRadius: 28, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', minWidth: 720 }}>
+            <span style={{ fontSize: 80, fontWeight: 800, letterSpacing: '-0.01em', opacity: 0.9 }}>{shown}</span>
+          </div>
+          {prize}
+        </div>
+      </>
+    );
+  }
+
+  const before = winners.slice(0, -1).map((w) => w.name);
+  return (
+    <>
+      <Backdrop glow="center" />
+      <Confetti />
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, textAlign: 'center', paddingBottom: 30 }}>
+        <div className="podium-in">{TROPHY}</div>
+        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>{winners.length > 1 ? `${winners.length}º sorteado` : 'Parabéns!'}</span>
+        <h1 className="podium-in" style={{ margin: 0, fontSize: latest.name.length > 22 ? 82 : 110, lineHeight: 1, fontWeight: 900, letterSpacing: '-0.03em' }}>{latest.name}</h1>
+        {prize}
+      </div>
+      {before.length ? (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 34, textAlign: 'center', fontSize: 18, color: '#9FB3C6' }}>Já sorteados: {before.join(' · ')}</div>
+      ) : null}
+    </>
+  );
+}
+
+// Confete discreto para o momento do sorteado.
+function Confetti() {
+  const pieces = useRef(null);
+  if (!pieces.current) {
+    const colors = ['#45B02B', '#7FD35F', '#F2C94C', '#6FB7FF', '#FFFFFF'];
+    pieces.current = Array.from({ length: 46 }, (_, i) => ({ i, x: Math.random() * 1280, d: Math.random() * 1.2, dur: 2.6 + Math.random() * 1.8, c: colors[i % colors.length], w: 8 + Math.random() * 8, r: Math.random() * 360 }));
+  }
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      {pieces.current.map((p) => (
+        <span key={p.i} className="confetti" style={{ left: p.x, width: p.w, height: p.w * 0.45, background: p.c, animationDelay: p.d + 's', animationDuration: p.dur + 's', '--rot': p.r + 'deg' }} />
+      ))}
+    </div>
+  );
+}
+
 // Reações do público subindo pela lateral direita do palco.
 function Reactions({ list }) {
   const seen = useRef(new Set());
@@ -470,6 +605,12 @@ export default function Telao({ data, joinUrl, full = false }) {
   } else if (a.kind === 'choice') {
     key = a.id;
     screen = <ChoiceScreen a={a} results={results} foot={foot} />;
+  } else if (a.kind === 'qa') {
+    key = `${a.id}:${run.highlight || 'list'}`;
+    screen = <QaScreen a={a} run={run} results={results} foot={foot} />;
+  } else if (a.kind === 'raffle') {
+    key = `${a.id}:${((results && results.winners) || []).length}`;
+    screen = <RaffleScreen a={a} run={run} results={results} data={data} now={now} foot={foot} />;
   } else if (a.kind === 'quiz') {
     key = `${a.id}:${a.qIndex}:${run.phase === 'rank' ? 'rank' : run.phase === 'ready' ? 'ready' : 'q'}`;
     screen = <QuizScreen a={a} run={run} results={results} data={data} now={now} foot={foot} />;

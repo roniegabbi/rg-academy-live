@@ -18,7 +18,7 @@ export async function POST(req, { params }) {
   const rows = await sql`
     UPDATE participants p SET last_react = now()
     FROM events e
-    WHERE p.token = ${token} AND p.event_id = e.id AND e.pin = ${pin} AND e.status = 'live'
+    WHERE p.token = ${token} AND p.event_id = e.id AND e.pin = ${pin} AND e.status = 'live' AND e.reactions_on
       AND (p.last_react IS NULL OR p.last_react < now() - interval '1.5 seconds')
     RETURNING e.id AS event_id`;
   if (!rows.length) return json({ ok: false, throttled: true }, { status: 429 });

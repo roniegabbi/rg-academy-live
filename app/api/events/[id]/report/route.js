@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { json, error } from '@/lib/http';
 import { ownedEvent } from '@/lib/auth';
-import { activityResults, quizQuestions } from '@/lib/live';
+import { activityResults, quizQuestions, raffleWinners } from '@/lib/live';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +19,11 @@ export async function GET(req, { params }) {
   for (const a of acts) {
     const item = { id: a.id, kind: a.kind, title: a.title, config: a.config };
     if (a.kind === 'cloud' || a.kind === 'choice') item.results = await activityResults(a, {});
+    if (a.kind === 'qa') {
+      const r = await activityResults(a, {});
+      item.questions = r.questions.filter((q) => q.status !== 'pending').sort((x, y) => y.likes - x.likes).slice(0, 30);
+    }
+    if (a.kind === 'raffle') item.winners = (await raffleWinners(a.id)).map((w) => w.name);
     if (a.kind === 'quiz') {
       const qs = quizQuestions(a);
       item.questions = [];

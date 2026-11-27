@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
     SELECT a.position, a.kind, a.title, a.config, r.q_index, r.text_value, r.options, r.correct, r.points, r.created_at, p.name
     FROM responses r JOIN activities a ON a.id = r.activity_id JOIN participants p ON p.id = r.participant_id
     WHERE r.event_id = ${id} ORDER BY a.position, r.q_index, r.created_at`;
-  const kindName = { cloud: 'Mapa de palavras', choice: 'Múltipla escolha', quiz: 'Quiz' };
+  const kindName = { cloud: 'Mapa de palavras', choice: 'Múltipla escolha', quiz: 'Quiz', raffle: 'Sorteio' };
   const lines = [['Atividade', 'Tipo', 'Pergunta', 'Participante', 'Resposta', 'Acertou', 'Pontos', 'Data/hora'].map(cell).join(';')];
   for (const r of rows) {
     const c = r.config || {};
@@ -34,6 +34,12 @@ export async function GET(req, { params }) {
     }
     const when = new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     lines.push([`${r.position + 1}. ${r.title}`, kindName[r.kind] || r.kind, question, r.name || 'Anônimo', answer, r.kind === 'quiz' ? (r.correct ? 'Sim' : 'Não') : '', r.kind === 'quiz' ? r.points : '', when].map(cell).join(';'));
+  }
+  const qs = await sql`SELECT a.position, a.title, q.author, q.text, q.status, q.likes, q.created_at FROM questions q JOIN activities a ON a.id = q.activity_id WHERE q.event_id = ${id} ORDER BY a.position, q.likes DESC, q.id`;
+  const stName = { pending: 'Não aprovada', approved: 'Aprovada', answered: 'Respondida', hidden: 'Oculta' };
+  for (const q of qs) {
+    const when = new Date(q.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    lines.push([`${q.position + 1}. ${q.title}`, 'Perguntas ao palestrante', q.text, q.author || 'Anônimo', `${stName[q.status] || q.status} · ${q.likes} curtida(s)`, '', '', when].map(cell).join(';'));
   }
   const body = '﻿' + lines.join('\r\n');
   const fname = 'respostas-' + o.event.title.normalize('NFD').replace(/[^\w]+/g, '-').toLowerCase().slice(0, 50) + '.csv';

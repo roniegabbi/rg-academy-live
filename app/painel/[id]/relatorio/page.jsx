@@ -109,6 +109,26 @@ export default function Relatorio() {
                 </div>
               </>
             ) : null}
+            {a.kind === 'qa' ? (
+              <>
+                <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question || a.title}</h2>
+                <p className="muted">{(a.questions || []).length} {(a.questions || []).length === 1 ? 'pergunta aprovada' : 'perguntas aprovadas'} · ordenadas por curtidas</p>
+                {(a.questions || []).length ? a.questions.map((q, qi) => (
+                  <div key={q.id} className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 10, background: '#F4F6F8', flexWrap: 'nowrap' }}>
+                    <span style={{ fontSize: 15 }}><b>{qi + 1}.</b> {q.text} <span className="muted">— {q.author || 'Anônimo'}{q.status === 'answered' ? ' · respondida' : ''}</span></span>
+                    <b style={{ flex: 'none' }}>👍 {q.likes}</b>
+                  </div>
+                )) : <p className="muted">Nenhuma pergunta aprovada.</p>}
+              </>
+            ) : null}
+            {a.kind === 'raffle' ? (
+              <>
+                <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.prize ? `Sorteio: ${c.prize}` : 'Sorteio'}</h2>
+                {(a.winners || []).length ? a.winners.map((w, wi) => (
+                  <div key={wi} className="row" style={{ padding: '8px 12px', borderRadius: 10, background: wi === 0 ? 'var(--green-soft)' : '#F4F6F8' }}><b>{wi + 1}º sorteado:</b>&nbsp;{w}</div>
+                )) : <p className="muted">Nenhum sorteio realizado.</p>}
+              </>
+            ) : null}
           </section>
         );
       })}
