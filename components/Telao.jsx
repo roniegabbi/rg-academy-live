@@ -69,7 +69,7 @@ function Backdrop({ glow = 'right', logo = true, mark = false }) {
 
 function Foot({ joinUrl, pin, participants }) {
   return (
-    <div style={{ position: 'absolute', left: 48, right: 48, bottom: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div style={{ position: 'absolute', left: 88, right: 88, bottom: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 18px 6px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', padding: 3, boxSizing: 'border-box' }}>{joinUrl ? <QR value={joinUrl} size={160} style={{ width: 34, height: 34 }} /> : null}</div>
         <span style={{ fontSize: 16, color: '#C9D6E2' }}>{hostOf(joinUrl)} · PIN <strong style={{ color: '#7FD35F', letterSpacing: '0.08em' }}>{pin}</strong></span>
@@ -126,7 +126,7 @@ function Cover({ a, title }) {
         {a.text ? <p style={{ margin: 0, fontSize: 24, fontWeight: 300, color: '#C9D6E2', maxWidth: 900 }}>{a.text}</p> : null}
       </div>
       {meta.length ? (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, fontSize: 18, color: '#C9D6E2' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 52, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, fontSize: 18, color: '#C9D6E2' }}>
           {meta.map((m, i) => (
             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               {i > 0 ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#45B02B' }} /> : null}
@@ -150,7 +150,7 @@ function QrSlide({ joinUrl, pin, participants, note }) {
         </div>
         <p style={{ margin: 0, fontSize: 20, color: '#9FB3C6' }}>Sem câmera? Acesse <strong style={{ color: '#fff' }}>{hostOf(joinUrl)}</strong> e use o PIN <strong style={{ color: '#7FD35F', letterSpacing: '0.1em' }}>{pin}</strong></p>
       </div>
-      <div style={{ position: 'absolute', right: 48, bottom: 32, display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, color: '#C9D6E2' }}>
+      <div style={{ position: 'absolute', right: 88, bottom: 32, display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, color: '#C9D6E2' }}>
         {note ? <span style={{ color: '#7FD35F', fontWeight: 700, marginRight: 16 }}>{note}</span> : null}
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#45B02B' }} /><strong style={{ color: '#fff' }}>{participants || 0}</strong> {participants === 1 ? 'conectado' : 'conectados'}
       </div>
@@ -527,7 +527,7 @@ function RaffleScreen({ a, run, results, data, now, foot }) {
         {prize}
       </div>
       {before.length ? (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, textAlign: 'center', fontSize: 18, color: '#9FB3C6' }}>Já sorteados: {before.join(' · ')}</div>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, textAlign: 'center', fontSize: 18, color: '#9FB3C6' }}>Já sorteados: {before.join(' · ')}</div>
       ) : null}
     </>
   );
@@ -621,7 +621,7 @@ export default function Telao({ data, joinUrl, full = false }) {
       <div key={key} className="stage-in" style={{ position: 'absolute', inset: 0 }}>{screen}</div>
       {status === 'live' ? <Reactions list={data.reactions} /> : null}
       {paused && status === 'live' && a && a.kind !== 'slide' ? (
-        <span style={{ position: 'absolute', top: 32, right: 48, padding: '8px 16px', borderRadius: 999, background: '#F2A93B', color: '#0B2238', fontSize: 18, fontWeight: 700 }}>Respostas pausadas</span>
+        <span style={{ position: 'absolute', top: 32, right: 88, padding: '8px 16px', borderRadius: 999, background: '#F2A93B', color: '#0B2238', fontSize: 18, fontWeight: 700 }}>Respostas pausadas</span>
       ) : null}
     </Stage>
   );
