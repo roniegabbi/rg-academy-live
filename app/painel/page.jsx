@@ -14,6 +14,7 @@ export default function Painel() {
   const [title, setTitle] = useState('');
   const [err, setErr] = useState('');
   const [ending, setEnding] = useState('');
+  const [listErr, setListErr] = useState('');
 
   const load = () => api('/api/events').then((r) => { if (r.ok) setEvents(r.events); });
   useEffect(() => { load(); }, []);
@@ -31,10 +32,10 @@ export default function Painel() {
   const end = async (ev) => {
     if (!window.confirm(`Encerrar o evento "${ev.title}"? O telão mostra a tela de agradecimento e o QR code para de aceitar novas entradas. As respostas ficam guardadas para o relatório.`)) return;
     setEnding(ev.id);
-    setErr('');
+    setListErr('');
     const r = await api(`/api/events/${ev.id}/control`, { method: 'POST', body: { action: 'end' } });
     setEnding('');
-    if (!r.ok) { setErr(r.error); return; }
+    if (!r.ok) { setListErr(r.error); return; }
     setEvents((list) => list.map((x) => (x.id === ev.id ? { ...x, status: 'ended' } : x)));
   };
   const remove = async (ev) => {
@@ -64,7 +65,7 @@ export default function Painel() {
         </form>
 
         <section className="card">
-          {err && events ? <div className="alert" role="alert" style={{ marginBottom: 12 }}>{err}</div> : null}
+          {listErr ? <div className="alert" role="alert" style={{ marginBottom: 12 }}>{listErr}</div> : null}
           {events === null ? <p className="muted">Carregando…</p> : events.length === 0 ? (
             <p className="muted">Nenhum evento ainda. Crie o primeiro acima.</p>
           ) : (
