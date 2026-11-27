@@ -339,9 +339,9 @@ function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
           </button>
         ))}
       </div>
-      {warn ? <div className="alert" role="status" style={{ background: '#FFF4E0', color: '#7A4B00' }}>{warn}</div> : null}
-      {err ? <div className="alert" role="alert">{err}</div> : null}
       <div className="phone-sticky">
+        {warn ? <div className="alert" role="status" style={{ background: '#FFF4E0', color: '#7A4B00', marginBottom: 10 }}>{warn}</div> : null}
+        {err ? <div className="alert" role="alert" style={{ marginBottom: 10 }}>{err}</div> : null}
         <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || !picked.length}>{busy ? 'Enviando…' : picked.length ? 'Enviar voto' : (a.multi ? 'Escolha ao menos uma opção' : 'Escolha uma opção')}</button>
       </div>
     </div>
