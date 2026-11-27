@@ -19,8 +19,10 @@ export default function Participante() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setToken(store.get(`rg:${pin}:token`));
+    const t = store.get(`rg:${pin}:token`);
+    setToken(t);
     setName(store.get('rg:name') || '');
+    if (t) store.set('rg:last', pin);
     setReady(true);
   }, [pin]);
 
@@ -28,7 +30,7 @@ export default function Participante() {
   if (!data || !ready) return <Shell><Center title="Conectando…" /></Shell>;
 
   const ev = data.event;
-  if (!token) return <Shell event={ev} offline={offline}><Join pin={pin} ev={ev} name={name} setName={setName} onJoin={(t) => { store.set(`rg:${pin}:token`, t); setToken(t); }} /></Shell>;
+  if (!token) return <Shell event={ev} offline={offline}><Join pin={pin} ev={ev} name={name} setName={setName} onJoin={(t) => { store.set(`rg:${pin}:token`, t); store.set('rg:last', pin); setToken(t); }} /></Shell>;
 
   return (
     <Shell event={ev} offline={offline}>

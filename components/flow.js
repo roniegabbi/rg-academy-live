@@ -3,6 +3,7 @@ export function nextStep(data) {
   if (!data || !data.event) return null;
   const { event, activity: a, run = {}, index = 0, total = 0 } = data;
   if (event.status !== 'live') return { action: 'start', label: event.status === 'ended' ? 'Reabrir evento' : 'Iniciar evento' };
+  if (event.showQr) return { action: 'qrHide', label: 'Voltar ao evento' };
   if (a && a.kind === 'quiz') {
     const n = (a.qIndex || 0) + 1;
     if (run.phase === 'ready') return { action: 'quizStart', label: `Iniciar pergunta ${n}` };

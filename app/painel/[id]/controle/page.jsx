@@ -133,6 +133,13 @@ export default function Controle() {
               ) : null}
             </div>
 
+            {live ? (
+              <button className="btn btn-block" style={{ minHeight: 52, ...(event.showQr ? { background: 'var(--green)', borderColor: 'var(--green)', color: 'var(--navy)', fontWeight: 800 } : {}) }} onClick={() => run(event.showQr ? 'qrHide' : 'qrShow')} disabled={busy}>
+                {event.showQr ? 'Esconder QR e voltar ao evento' : 'Mostrar QR no telão'}
+              </button>
+            ) : null}
+            {live && event.showQr ? <span className="hint" style={{ marginTop: -4 }}>O QR está por cima da atividade atual. Ao esconder, o telão volta exatamente para ela.</span> : null}
+
             {live && a ? (
               <div className="card stack" style={{ gap: 4 }}>
                 <span className="eyebrow">Agora · {index + 1} de {activities.length}</span>
@@ -204,7 +211,7 @@ export default function Controle() {
                 <span className="hint" style={{ wordBreak: 'break-all' }}>{joinUrl}</span>
               </div>
             ) : null}
-            <p className="hint">Atalhos: passador de slides ou setas ← → do teclado.</p>
+            <p className="hint">Atalhos: passador de slides ou setas ← → do teclado. Na tela do projetor, a tecla Q mostra/esconde o QR.</p>
           </aside>
         </div>
 

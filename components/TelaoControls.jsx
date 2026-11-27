@@ -40,17 +40,21 @@ export default function TelaoControls({ eventId, data, onChange }) {
   };
 
   // O teclado/passador sempre usa o passo mais recente, sem reiniciar o temporizador a cada atualização do telão.
+  const showQr = !!(data && data.event && data.event.showQr);
+  const live = !!(data && data.event && data.event.status === 'live');
+  const toggleQr = () => act({ action: showQr ? 'qrHide' : 'qrShow' });
   const latest = useRef({});
-  latest.current = { next, prev, act, toggleFull };
+  latest.current = { next, prev, act, toggleFull, toggleQr, live };
 
   useEffect(() => {
     wake();
     const onMove = () => wake();
     const onKey = (e) => {
-      const { next: n, prev: p, act: a, toggleFull: f } = latest.current;
+      const { next: n, prev: p, act: a, toggleFull: f, toggleQr: q, live: lv } = latest.current;
       if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); if (n && n.action !== 'end') a(n); }
       if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); a(p); }
       if (e.key === 'f' || e.key === 'F') f();
+      if ((e.key === 'q' || e.key === 'Q') && lv) q();
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('keydown', onKey);
@@ -87,6 +91,17 @@ export default function TelaoControls({ eventId, data, onChange }) {
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
+      ) : null}
+
+      {/* QR por cima do telão (sem sair da atividade): canto superior direito, ao lado da tela cheia */}
+      {live ? (
+        <button
+          onClick={toggleQr} disabled={busy} title={showQr ? 'Esconder QR e voltar ao evento (Q)' : 'Mostrar QR para quem caiu ou chegou agora (Q)'}
+          style={{ ...fade, position: 'fixed', right: 64, top: 14, height: 42, padding: '0 14px', borderRadius: 999, border: showQr ? '0' : '1px solid rgba(255,255,255,.18)', background: showQr ? '#45B02B' : 'rgba(8,26,44,.7)', color: showQr ? '#0B2238' : '#fff', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></svg>
+          {showQr ? 'Esconder QR' : 'Mostrar QR'}
+        </button>
       ) : null}
 
       {/* Tela cheia: canto superior direito */}

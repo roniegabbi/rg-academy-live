@@ -32,9 +32,12 @@ export function usePoll(url, intervalMs, { bust = false } = {}) {
     if (!url) return undefined;
     let stop = false;
     let timer;
+    let inflight = false;
     const run = async () => {
+      inflight = true;
       const u = bust ? `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}` : url;
       const r = await api(u);
+      inflight = false;
       if (stop) return;
       if (r.ok) {
         fails.current = 0;
@@ -51,7 +54,25 @@ export function usePoll(url, intervalMs, { bust = false } = {}) {
       timer = setTimeout(run, wait);
     };
     run();
-    return () => { stop = true; clearTimeout(timer); };
+    // Celular voltando do modo de espera (ou a rede voltando): atualiza na hora, sem esperar.
+    const kick = () => {
+      if (document.visibilityState !== 'visible' || inflight || stop) return;
+      fails.current = 0;
+      clearTimeout(timer);
+      run();
+    };
+    document.addEventListener('visibilitychange', kick);
+    window.addEventListener('online', kick);
+    window.addEventListener('focus', kick);
+    window.addEventListener('pageshow', kick);
+    return () => {
+      stop = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', kick);
+      window.removeEventListener('online', kick);
+      window.removeEventListener('focus', kick);
+      window.removeEventListener('pageshow', kick);
+    };
   }, [url, intervalMs, bust, tick]);
 
   const refresh = () => setTick((t) => t + 1);

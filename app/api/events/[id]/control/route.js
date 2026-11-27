@@ -41,7 +41,7 @@ export async function POST(req, { params }) {
     }
     case 'end':
       status = 'ended';
-      await sql`UPDATE events SET status = 'ended', ended_at = now() WHERE id = ${id}`;
+      await sql`UPDATE events SET status = 'ended', ended_at = now(), qr_overlay = false WHERE id = ${id}`;
       break;
     case 'goto': goTo(parseInt(body.index, 10) || 0); break;
     case 'next': goTo(index + 1); break;
@@ -126,6 +126,11 @@ export async function POST(req, { params }) {
       run = {};
       break;
     }
+    case 'qrShow':
+    case 'qrHide':
+      // QR por cima do telão, sem mudar a atividade: quem caiu ou chegou atrasado entra e o evento segue do mesmo ponto.
+      await sql`UPDATE events SET qr_overlay = ${action === 'qrShow'} WHERE id = ${id}`;
+      break;
     case 'clearEvent':
       await sql`DELETE FROM responses WHERE event_id = ${id}`;
       await sql`DELETE FROM questions WHERE event_id = ${id}`;

@@ -549,6 +549,29 @@ function Confetti() {
   );
 }
 
+// QR por cima da tela atual: o evento continua exatamente onde estava por baixo.
+function QrOverlay({ joinUrl, pin, participants }) {
+  return (
+    <div className="qr-overlay" style={{ position: 'absolute', inset: 0, zIndex: 8, background: 'rgba(5,16,29,0.86)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 64, padding: '48px 64px', borderRadius: 32, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 30px 80px rgba(0,0,0,0.45)' }}>
+        <div style={{ width: 380, height: 380, borderRadius: 26, background: '#fff', padding: 18, boxSizing: 'border-box', boxShadow: '0 0 0 8px rgba(69,176,43,0.35)' }}>
+          {joinUrl ? <QR value={joinUrl} size={720} style={{ width: 344, height: 344 }} /> : null}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 520 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Entre ou volte para o evento</span>
+          <h1 style={{ margin: 0, fontSize: 60, lineHeight: 1.02, fontWeight: 800, letterSpacing: '-0.02em' }}>Aponte a câmera para o QR code</h1>
+          <div style={{ fontSize: 24, color: '#C9D6E2' }}>ou acesse <strong style={{ color: '#fff' }}>{hostOf(joinUrl)}</strong></div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+            <span style={{ fontSize: 24, color: '#C9D6E2' }}>PIN</span>
+            <span style={{ fontSize: 64, fontWeight: 800, letterSpacing: '0.12em', color: '#7FD35F', lineHeight: 1 }}>{pin}</span>
+          </div>
+          <span style={{ fontSize: 18, color: '#9FB3C6' }}>Você volta exatamente de onde parou · <strong style={{ color: '#fff' }}>{participants || 0}</strong> {participants === 1 ? 'participante' : 'participantes'}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Reações do público subindo pela lateral direita do palco.
 function Reactions({ list }) {
   const seen = useRef(new Set());
@@ -620,6 +643,7 @@ export default function Telao({ data, joinUrl, full = false }) {
     <Stage full={full}>
       <div key={key} className="stage-in" style={{ position: 'absolute', inset: 0 }}>{screen}</div>
       {status === 'live' ? <Reactions list={data.reactions} /> : null}
+      {status === 'live' && event.showQr ? <QrOverlay joinUrl={joinUrl} pin={event.pin} participants={participants} /> : null}
       {paused && status === 'live' && a && a.kind !== 'slide' ? (
         <span style={{ position: 'absolute', top: 32, right: 88, padding: '8px 16px', borderRadius: 999, background: '#F2A93B', color: '#0B2238', fontSize: 18, fontWeight: 700 }}>Respostas pausadas</span>
       ) : null}
