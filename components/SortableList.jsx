@@ -9,6 +9,7 @@ export default function SortableList({ items, selectedId, onSelect, onReorder, r
   const [drag, setDrag] = useState(null); // { id, dy }
   const st = useRef(null);
   const suppressClick = useRef(false);
+  const live = useRef(null); // ordem mais recente (não depende do próximo render)
   const els = useRef({});
   const list = order || items;
 
@@ -28,10 +29,11 @@ export default function SortableList({ items, selectedId, onSelect, onReorder, r
       if (Math.abs(e.clientY - s.y0) < 6 && Math.abs(e.clientX - s.x0) < 6) return;
       s.started = true;
       try { s.el.setPointerCapture(e.pointerId); } catch { /* ok */ }
-      setOrder(items.slice());
+      live.current = items.slice();
+      setOrder(live.current);
     }
     e.preventDefault();
-    const cur = order || items;
+    const cur = live.current || items;
     // Centro "virtual" do cartão que está sendo arrastado.
     const center = e.clientY - s.grab + s.h / 2;
     const others = cur.filter((x) => x.id !== s.id);
@@ -44,7 +46,7 @@ export default function SortableList({ items, selectedId, onSelect, onReorder, r
     }
     const dragged = cur.find((x) => x.id === s.id);
     const next = [...others.slice(0, target), dragged, ...others.slice(target)];
-    if (next.some((x, i) => x.id !== cur[i].id)) { setOrder(next); s.moved = true; }
+    if (next.some((x, i) => x.id !== cur[i].id)) { live.current = next; setOrder(next); s.moved = true; }
     // Desloca o cartão para seguir o ponteiro (a partir da posição natural dele na lista).
     const parent = s.el.offsetParent;
     const naturalTop = (parent ? parent.getBoundingClientRect().top : 0) + s.el.offsetTop;
@@ -58,7 +60,8 @@ export default function SortableList({ items, selectedId, onSelect, onReorder, r
     if (!s || (e && e.pointerId !== s.pointerId)) return;
     st.current = null;
     if (!s.started) return;
-    const final = order;
+    const final = live.current;
+    live.current = null;
     setDrag(null);
     setOrder(null);
     suppressClick.current = true;
