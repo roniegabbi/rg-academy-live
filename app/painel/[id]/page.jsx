@@ -70,7 +70,9 @@ export default function Editor() {
   const save = async () => {
     if (!current) return;
     setBusy('save');
-    const r = await api(`/api/activities/${current.id}`, { method: 'PATCH', body: { config: draft, title: autoTitle(current.kind, draft) } });
+    // Slides de imagem/vídeo sem título próprio mantêm o nome que já tinham (ex.: páginas importadas do PDF).
+    const keep = current.kind === 'slide' && ['image', 'youtube'].includes(draft.mode) && !(draft.heading || '').trim() && current.title && !/^(Imagem|Vídeo|Slide)$/.test(current.title);
+    const r = await api(`/api/activities/${current.id}`, { method: 'PATCH', body: { config: draft, title: keep ? current.title : autoTitle(current.kind, draft) } });
     setBusy('');
     if (!r.ok) { setErr(r.error); return; }
     setActs(acts.map((a) => (a.id === current.id ? r.activity : a)));
@@ -213,7 +215,7 @@ export default function Editor() {
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <div className="stack" style={{ gap: 2 }}>
                     <span className="eyebrow">Atividade {acts.findIndex((a) => a.id === sel) + 1} de {acts.length} · {kindLabel({ kind: current.kind, config: draft })}</span>
-                    <h2 style={{ fontSize: 22, fontWeight: 800 }}>{autoTitle(current.kind, draft)}</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 800 }}>{current.kind === 'slide' && ['image', 'youtube'].includes(draft.mode) && !(draft.heading || '').trim() ? current.title : autoTitle(current.kind, draft)}</h2>
                   </div>
                   <div className="row" style={{ gap: 6 }}>
                     <button className="btn btn-sm icon-btn" onClick={() => move(-1)} aria-label="Mover para cima">↑</button>
