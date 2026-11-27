@@ -32,12 +32,18 @@
 - Filtro de nomes ofensivos na entrada.
 - Testado em produção com evento temporário (já apagado): reações, limite, emoji inválido, filtro de nome, nome no ranking e confirmação do voto.
 
-### Próximas oportunidades (não feitas)
-1. Pergunte ao palestrante (Q&A com curtidas e moderação).
-2. Sorteio entre participantes no telão.
-3. Resultado no celular após fechar a votação.
-4. Sequência de acertos (streak) no quiz e posição individual no celular.
-5. Liga/desliga de reações por evento.
-6. Ensaio de carga das reações com 500 pessoas.
-7. Proteção contra entradas falsas em massa (limite por IP).
-8. Nuvem de palavras: agrupar sinônimos/plurais.
+## Rodada 27/11 — as 7 melhorias
+- Perguntas ao palestrante (atividade `qa`): até 3 perguntas por pessoa, opção sem nome, curtidas (1 por pessoa), aprovação opcional; no painel: Aprovar, Destacar (tela cheia no telão), Respondida, Ocultar. Tabelas `questions` e `question_likes`.
+- Sorteio (atividade `raffle`): nomes giram ~3,6s no telão, troféu e confete; celular do ganhador fica verde e vibra (marca = sha256(token) 12 caracteres). Ganhadores gravados como respostas da atividade; ninguém ganha duas vezes; opção "só quem tem nome". Botão principal vira "Sortear agora".
+- Gráfico no celular após votar (opção por pergunta, ligada por padrão).
+- Quiz: acertos seguidos e pontos que faltam para o próximo lugar.
+- Reações: liga/desliga por evento (`events.reactions_on`).
+- Entradas: até 400 novas entradas por minuto da mesma rede e teto de 2.000 por evento (`participants.ip_hash`, IP com hash).
+- Nuvem: agrupa plural/singular, acento e maiúsculas; mostra a forma mais usada (empate: singular acentuado).
+- Relatório PDF e planilha incluem perguntas e sorteados.
+- Tudo testado em produção com evento temporário (apagado).
+
+### Ideias futuras
+1. Ensaio de carga das reações e das curtidas com 500 pessoas.
+2. Resultado do quiz por equipes.
+3. Pergunta aberta (texto livre) com respostas em mural.
