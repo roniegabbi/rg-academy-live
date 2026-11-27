@@ -7,6 +7,7 @@ import Topbar from '@/components/Topbar';
 import { api, kindLabel, letters } from '@/components/client';
 import { compressImage, uploadImage, pdfToImages } from '@/components/media';
 import AiPanel from '@/components/AiPanel';
+import SortableList from '@/components/SortableList';
 
 const ADD = [
   { kind: 'slide', label: 'Slide', desc: 'Texto, imagem ou vídeo' },
@@ -94,6 +95,15 @@ export default function Editor() {
     setDirty(false);
     await load();
   };
+  // Nova ordem vinda do arrastar: aparece na hora e é salva no servidor.
+  const reorder = async (next) => {
+    const before = acts;
+    setActs(next);
+    const r = await api(`/api/events/${id}/activities`, { method: 'PUT', body: { order: next.map((a) => a.id) } });
+    if (!r.ok) { setActs(before); setErr('Não foi possível salvar a nova ordem: ' + r.error); return; }
+    setMsg('Ordem atualizada.');
+    setTimeout(() => setMsg(''), 1800);
+  };
   const move = async (dir) => {
     const i = acts.findIndex((a) => a.id === sel);
     const j = i + dir;
@@ -169,12 +179,19 @@ export default function Editor() {
         <div className="layout-2">
           <aside className="side card stack" style={{ gap: 8 }}>
             <span className="eyebrow">Sequência do evento</span>
-            {acts.map((a, i) => (
-              <button key={a.id} className={'act-item' + (a.id === sel ? ' on' : '')} onClick={() => choose(a)}>
-                <span className="act-num">{i + 1}</span>
-                <span className="act-meta"><span className="k">{kindLabel(a)}</span><span className="t">{a.title}</span></span>
-              </button>
-            ))}
+            {acts.length > 1 ? <span className="hint" style={{ marginTop: -4 }}>Arraste para mudar a ordem.</span> : null}
+            <SortableList
+              items={acts}
+              selectedId={sel}
+              onSelect={choose}
+              onReorder={reorder}
+              renderItem={(a, i) => (
+                <>
+                  <span className="act-num">{i + 1}</span>
+                  <span className="act-meta"><span className="k">{kindLabel(a)}</span><span className="t">{a.title}</span></span>
+                </>
+              )}
+            />
             {!acts.length ? <p className="muted">Nenhuma atividade. Adicione abaixo.</p> : null}
             <span className="eyebrow" style={{ marginTop: 10 }}>Adicionar atividade</span>
             <div className="add-grid">
@@ -195,7 +212,7 @@ export default function Editor() {
               <>
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <div className="stack" style={{ gap: 2 }}>
-                    <span className="eyebrow">Atividade {acts.findIndex((a) => a.id === sel) + 1} · {kindLabel({ kind: current.kind, config: draft })}</span>
+                    <span className="eyebrow">Atividade {acts.findIndex((a) => a.id === sel) + 1} de {acts.length} · {kindLabel({ kind: current.kind, config: draft })}</span>
                     <h2 style={{ fontSize: 22, fontWeight: 800 }}>{autoTitle(current.kind, draft)}</h2>
                   </div>
                   <div className="row" style={{ gap: 6 }}>

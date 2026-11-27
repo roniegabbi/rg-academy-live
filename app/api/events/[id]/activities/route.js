@@ -38,8 +38,13 @@ export async function PUT(req, { params }) {
   const body = await readJson(req);
   const ids = Array.isArray(body.order) ? body.order.filter(isUuid) : [];
   const sql = db();
+  // Se o evento está ao vivo, o telão continua na mesma atividade depois da troca de ordem.
+  const before = await sql`SELECT id FROM activities WHERE event_id = ${id} ORDER BY position, created_at`;
+  const currentId = before[Math.min(o.event.current_index || 0, Math.max(0, before.length - 1))]?.id;
   for (let i = 0; i < ids.length; i++) {
     await sql`UPDATE activities SET position = ${i} WHERE id = ${ids[i]} AND event_id = ${id}`;
   }
+  const newIndex = currentId ? ids.indexOf(currentId) : -1;
+  if (newIndex >= 0 && newIndex !== o.event.current_index) await sql`UPDATE events SET current_index = ${newIndex} WHERE id = ${id}`;
   return json({ ok: true });
 }
