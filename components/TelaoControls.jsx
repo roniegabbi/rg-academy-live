@@ -60,7 +60,7 @@ export default function TelaoControls({ eventId, data, onChange }) {
   const base = { height: 44, padding: '0 14px', borderRadius: 999, border: 0, background: 'rgba(255,255,255,.12)', color: '#fff', fontWeight: 600, fontSize: 15, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' };
 
   return (
-    <div className="no-print" onMouseEnter={wake} style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 22, zIndex: 20, display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', gap: 8, opacity: visible ? 1 : 0, transition: 'opacity .5s', pointerEvents: visible ? 'auto' : 'none' }}>
+    <div className="no-print" onMouseEnter={wake} style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 10, zIndex: 20, display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', gap: 8, opacity: visible ? 1 : 0, transition: 'opacity .5s', pointerEvents: visible ? 'auto' : 'none' }}>
       <div style={{ display: 'flex', gap: 6, padding: 6, borderRadius: 999, background: 'rgba(8,26,44,.9)', boxShadow: '0 8px 30px rgba(0,0,0,.35)', alignItems: 'center' }}>
         <button style={{ ...base, width: 44, padding: 0, justifyContent: 'center', opacity: prev ? 1 : 0.35 }} onClick={() => act(prev)} disabled={!prev || busy} aria-label="Voltar uma atividade">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>

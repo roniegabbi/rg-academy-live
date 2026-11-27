@@ -126,7 +126,7 @@ function Cover({ a, title }) {
         {a.text ? <p style={{ margin: 0, fontSize: 24, fontWeight: 300, color: '#C9D6E2', maxWidth: 900 }}>{a.text}</p> : null}
       </div>
       {meta.length ? (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 52, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, fontSize: 18, color: '#C9D6E2' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, fontSize: 18, color: '#C9D6E2' }}>
           {meta.map((m, i) => (
             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               {i > 0 ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#45B02B' }} /> : null}
@@ -527,7 +527,7 @@ function RaffleScreen({ a, run, results, data, now, foot }) {
         {prize}
       </div>
       {before.length ? (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 34, textAlign: 'center', fontSize: 18, color: '#9FB3C6' }}>Já sorteados: {before.join(' · ')}</div>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, textAlign: 'center', fontSize: 18, color: '#9FB3C6' }}>Já sorteados: {before.join(' · ')}</div>
       ) : null}
     </>
   );
