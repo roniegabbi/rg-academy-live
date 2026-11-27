@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // Limites contra entradas falsas em massa. Generosos: num auditório, centenas de
 // celulares saem pela mesma rede Wi-Fi (mesmo IP).
-const PER_NETWORK_PER_MINUTE = 150;
+const PER_NETWORK_PER_MINUTE = 400;
 const MAX_PER_EVENT = 2000;
 
 function networkOf(req) {
