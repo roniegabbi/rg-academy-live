@@ -18,8 +18,12 @@ export async function GET(req, { params }) {
       state.results = { counts: r.counts, voters: r.voters };
     }
     if (act.kind === 'raffle') state.winners = await raffleWinners(act.id);
-    // Perguntas aprovadas, para o público ler e curtir.
-    if (act.kind === 'qa') {
+    if (act.kind === 'scale' && !(act.config && act.config.showResults === false)) {
+      const r = await activityResults(act, {});
+      state.results = { counts: r.counts, voters: r.voters, avg: r.avg };
+    }
+    // Perguntas/frases aprovadas, para o público ler e curtir.
+    if (act.kind === 'qa' || act.kind === 'wall') {
       state.questions = await db()`SELECT id::text AS id, author, text, likes, status FROM questions WHERE activity_id = ${act.id} AND status IN ('approved', 'answered') ORDER BY (status = 'answered') ASC, likes DESC, id ASC LIMIT 40`;
     }
   }

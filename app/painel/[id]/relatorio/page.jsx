@@ -19,7 +19,7 @@ export default function Relatorio() {
   if (err) return (<><Topbar /><main className="container"><div className="alert">{err}</div></main></>);
   if (!r) return (<><Topbar /><main className="container"><p className="muted">Carregando…</p></main></>);
 
-  const interactive = r.activities.filter((a) => a.kind !== 'slide');
+  const interactive = r.activities.filter((a) => a.kind !== 'slide' && a.kind !== 'timer');
   const slides = r.activities.filter((a) => a.kind === 'slide');
 
   return (
@@ -83,6 +83,39 @@ export default function Relatorio() {
                 <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question}</h2>
                 <p className="muted">{a.results.voters} {a.results.voters === 1 ? 'pessoa votou' : 'pessoas votaram'}{c.multi ? ` · até ${c.maxSelect} opções por pessoa` : ''}</p>
                 <ReportBars options={c.options || []} counts={a.results.counts} />
+                {a.results.before ? (
+                  <div className="stack" style={{ gap: 6 }}>
+                    <span className="eyebrow">Antes ({a.results.before.title}) · {a.results.before.voters} votos</span>
+                    <ReportBars options={c.options || []} counts={a.results.before.counts} />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            {a.kind === 'scale' ? (
+              <>
+                <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question}</h2>
+                <p className="muted">{a.results.voters} {a.results.voters === 1 ? 'resposta' : 'respostas'} · média <b>{a.results.avg == null ? '—' : a.results.avg.toFixed(1).replace('.', ',')}</b> de 10</p>
+                <ReportBars options={Array.from({ length: 11 }, (_, i) => String(i))} counts={a.results.counts} />
+              </>
+            ) : null}
+            {a.kind === 'rating' ? (
+              <>
+                <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question}</h2>
+                <p className="muted">{a.results.voters} {a.results.voters === 1 ? 'avaliação' : 'avaliações'} · média <b>{a.results.avg == null ? '—' : a.results.avg.toFixed(1).replace('.', ',')}</b> de 5 ★</p>
+                <ReportBars options={['1 ★', '2 ★', '3 ★', '4 ★', '5 ★']} counts={a.results.counts} />
+                {(a.results.commentList || []).length ? (
+                  <div className="stack" style={{ gap: 6 }}>
+                    <span className="eyebrow">Comentários ({a.results.commentList.length})</span>
+                    {a.results.commentList.map((cm, ci) => <p key={ci} style={{ fontSize: 14, padding: '8px 12px', borderRadius: 10, background: '#F4F6F8' }}>{'★'.repeat(cm.stars)} {cm.text} <span className="muted">— {cm.name || 'Anônimo'}</span></p>)}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            {a.kind === 'leaderboard' ? (
+              <>
+                <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.heading || 'Ranking do evento'}</h2>
+                <p className="muted">Pontos de participação: 10 por resposta, 15 por pergunta ou frase no mural, mais os pontos do quiz.</p>
+                {(a.results.ranking || []).map((p) => <div key={p.pos} className="row" style={{ justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: p.pos === 1 ? 'var(--green-soft)' : '#F4F6F8' }}><span><b>{p.pos}º</b> {p.name}{p.team ? <span className="muted"> · {p.team}</span> : null}</span><b>{p.score} pts</b></div>)}
               </>
             ) : null}
             {a.kind === 'quiz' ? (
@@ -107,12 +140,22 @@ export default function Relatorio() {
                     </div>
                   )) : <p className="muted">Ninguém pontuou.</p>}
                 </div>
+                {(a.teams || []).length ? (
+                  <div className="stack" style={{ gap: 6 }}>
+                    <span className="eyebrow">Ranking por equipes (média de pontos por integrante)</span>
+                    {a.teams.map((t, ti) => (
+                      <div key={t.name} className="row" style={{ justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: ti === 0 ? 'var(--green-soft)' : '#F4F6F8' }}>
+                        <span><b>{ti + 1}º</b> {t.name} <span className="muted">· {t.members} {t.members === 1 ? 'pessoa' : 'pessoas'}</span></span><b>{t.avg} pts</b>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </>
             ) : null}
-            {a.kind === 'qa' ? (
+            {a.kind === 'qa' || a.kind === 'wall' ? (
               <>
                 <h2 style={{ fontSize: 26, fontWeight: 800 }}>{c.question || a.title}</h2>
-                <p className="muted">{(a.questions || []).length} {(a.questions || []).length === 1 ? 'pergunta aprovada' : 'perguntas aprovadas'} · ordenadas por curtidas</p>
+                <p className="muted">{(a.questions || []).length} {a.kind === 'wall' ? ((a.questions || []).length === 1 ? 'frase aprovada' : 'frases aprovadas') : ((a.questions || []).length === 1 ? 'pergunta aprovada' : 'perguntas aprovadas')} · ordenadas por curtidas</p>
                 {(a.questions || []).length ? a.questions.map((q, qi) => (
                   <div key={q.id} className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 10, background: '#F4F6F8', flexWrap: 'nowrap' }}>
                     <span style={{ fontSize: 15 }}><b>{qi + 1}.</b> {q.text} <span className="muted">— {q.author || 'Anônimo'}{q.status === 'answered' ? ' · respondida' : ''}</span></span>

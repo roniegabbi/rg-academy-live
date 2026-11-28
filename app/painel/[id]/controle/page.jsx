@@ -17,6 +17,9 @@ function responsesOf(data) {
   if (r.kind === 'quiz') return { n: r.answered, l: r.answered === 1 ? 'resposta nesta pergunta' : 'respostas nesta pergunta' };
   if (r.kind === 'qa') { const n = (r.questions || []).length; return { n, l: n === 1 ? 'pergunta recebida' : 'perguntas recebidas' }; }
   if (r.kind === 'raffle') return { n: r.eligible, l: r.eligible === 1 ? 'pessoa concorrendo' : 'pessoas concorrendo' };
+  if (r.kind === 'wall') { const n = (r.questions || []).length; return { n, l: n === 1 ? 'frase recebida' : 'frases recebidas' }; }
+  if (r.kind === 'scale') return { n: r.voters, l: `${r.voters === 1 ? 'resposta' : 'respostas'}${r.avg != null ? ` · média ${r.avg.toFixed(1).replace('.', ',')}` : ''}` };
+  if (r.kind === 'rating') return { n: r.voters, l: `${r.voters === 1 ? 'avaliação' : 'avaliações'}${r.avg != null ? ` · média ${r.avg.toFixed(1).replace('.', ',')} ★` : ''}` };
   return null;
 }
 
@@ -72,7 +75,7 @@ export default function Controle() {
 
   const { event, activity: a, activities = [], index, paused } = data;
   const live = event.status === 'live';
-  const interactive = live && a && a.kind !== 'slide';
+  const interactive = live && a && !['slide', 'timer', 'leaderboard'].includes(a.kind);
   const upcoming = live ? activities[index + 1] : activities[0];
   const resp = responsesOf(data);
   const statusTag = live ? ['Ao vivo', 'tag-live'] : event.status === 'ended' ? ['Encerrado', 'tag-ended'] : ['Não iniciado', ''];
@@ -174,8 +177,22 @@ export default function Controle() {
               </div>
             ) : null}
 
-            {live && a && a.kind === 'qa' && data.results && data.results.kind === 'qa' ? (
-              <QaModeration results={data.results} run={run} busy={busy} moderate={a.moderate} />
+            {live && a && (a.kind === 'qa' || a.kind === 'wall') && data.results && data.results.kind === a.kind ? (
+              <QaModeration results={data.results} run={run} busy={busy} moderate={a.moderate} wall={a.kind === 'wall'} />
+            ) : null}
+
+            {live && a && a.kind === 'timer' ? (
+              <div className="card stack" style={{ gap: 10 }}>
+                <span className="eyebrow">Cronômetro · {a.label || 'dinâmica'}</span>
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  {(data.run || {}).state === 'running'
+                    ? <button className="btn" onClick={() => run('timerPause')} disabled={busy}>Pausar</button>
+                    : <button className="btn btn-primary" onClick={() => run('timerStart')} disabled={busy}>{(data.run || {}).state === 'paused' ? 'Continuar' : 'Iniciar'}</button>}
+                  <button className="btn" onClick={() => run('timerAdd', { seconds: 60 })} disabled={busy}>+1 min</button>
+                  <button className="btn" onClick={() => run('timerAdd', { seconds: -60 })} disabled={busy}>−1 min</button>
+                  <button className="btn btn-ghost" onClick={() => run('timerReset')} disabled={busy}>Reiniciar</button>
+                </div>
+              </div>
             ) : null}
 
             {live && a && a.kind === 'raffle' && data.results && data.results.kind === 'raffle' ? (
@@ -190,7 +207,7 @@ export default function Controle() {
                   <button className="btn btn-primary" onClick={() => run('raffleDraw')} disabled={busy || !data.results.eligible}>{(data.results.winners || []).length ? 'Sortear mais um' : 'Sortear agora'}</button>
                   {(data.results.winners || []).length ? <button className="btn btn-ghost" onClick={() => window.confirm('Apagar os sorteados e recomeçar o sorteio?') && run('raffleReset')} disabled={busy}>Recomeçar</button> : null}
                 </div>
-                <span className="hint">Quem já ganhou não é sorteado de novo.</span>
+                <span className="hint">Quem já ganhou não é sorteado de novo.{a.weighted ? ' Sorteio por participação: quem participou mais tem mais chances.' : ''}</span>
               </div>
             ) : null}
 
@@ -232,7 +249,7 @@ export default function Controle() {
 }
 
 // Moderação das perguntas do público: aprovar, destacar no telão, marcar como respondida.
-function QaModeration({ results, run, busy, moderate }) {
+function QaModeration({ results, run, busy, moderate, wall }) {
   const qs = results.questions || [];
   const pending = qs.filter((q) => q.status === 'pending');
   const approved = qs.filter((q) => q.status === 'approved');
@@ -242,7 +259,7 @@ function QaModeration({ results, run, busy, moderate }) {
   return (
     <div className="card stack" style={{ gap: 10 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="eyebrow">Perguntas do público</span>
+        <span className="eyebrow">{wall ? 'Frases do mural' : 'Perguntas do público'}</span>
         {hl ? <button className="btn btn-sm" style={small} onClick={() => run('qaHighlight', { questionId: '' })} disabled={busy}>Voltar para a lista</button> : null}
       </div>
       {moderate && pending.length ? (
@@ -268,14 +285,14 @@ function QaModeration({ results, run, busy, moderate }) {
               <span style={{ fontSize: 14 }}><b>👍 {q.likes}</b> · {q.text} <span className="muted">— {q.author || 'Anônimo'}</span></span>
               <div className="row" style={{ gap: 6 }}>
                 {hl === q.id ? <span className="tag tag-live" style={{ fontSize: 12 }}>No telão</span> : <button className="btn btn-sm" style={small} onClick={() => run('qaHighlight', { questionId: q.id })} disabled={busy}>Destacar</button>}
-                <button className="btn btn-sm" style={small} onClick={() => run('qaAnswered', { questionId: q.id })} disabled={busy}>Respondida ✓</button>
+                {wall ? null : <button className="btn btn-sm" style={small} onClick={() => run('qaAnswered', { questionId: q.id })} disabled={busy}>Respondida ✓</button>}
                 <button className="btn btn-sm btn-ghost btn-danger" style={small} onClick={() => run('qaHide', { questionId: q.id })} disabled={busy}>Ocultar</button>
               </div>
             </div>
           ))}
         </div>
       ) : null}
-      {!pending.length && !approved.length ? <span className="muted">{answered.length ? 'Todas as perguntas foram respondidas.' : 'Nenhuma pergunta ainda.'}</span> : null}
+      {!pending.length && !approved.length ? <span className="muted">{answered.length ? 'Todas as perguntas foram respondidas.' : wall ? 'Nenhuma frase ainda.' : 'Nenhuma pergunta ainda.'}</span> : null}
       {answered.length ? <span className="hint">{answered.length} {answered.length === 1 ? 'respondida' : 'respondidas'}</span> : null}
     </div>
   );

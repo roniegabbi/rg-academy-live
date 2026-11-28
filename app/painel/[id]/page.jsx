@@ -15,7 +15,12 @@ const ADD = [
   { kind: 'choice', label: 'Múltipla escolha', desc: 'Gráfico ao vivo no telão' },
   { kind: 'quiz', label: 'Quiz competitivo', desc: 'Perguntas com tempo e ranking' },
   { kind: 'qa', label: 'Perguntas ao palestrante', desc: 'O público pergunta e curte' },
-  { kind: 'raffle', label: 'Sorteio', desc: 'Sorteia um participante no telão' }
+  { kind: 'raffle', label: 'Sorteio', desc: 'Sorteia um participante no telão' },
+  { kind: 'scale', label: 'Escala de 0 a 10', desc: 'Média e distribuição ao vivo' },
+  { kind: 'wall', label: 'Mural de respostas', desc: 'Frases curtas em cartões' },
+  { kind: 'rating', label: 'Avaliação do encontro', desc: 'Estrelas e comentários' },
+  { kind: 'timer', label: 'Cronômetro', desc: 'Contagem regressiva no telão' },
+  { kind: 'leaderboard', label: 'Ranking do evento', desc: 'Pontos de participação' }
 ];
 
 function autoTitle(kind, c) {
@@ -31,6 +36,9 @@ function autoTitle(kind, c) {
   }
   if (kind === 'qa') return (c.question || '').trim() || 'Perguntas ao palestrante';
   if (kind === 'raffle') return c.prize ? `Sorteio: ${c.prize}`.slice(0, 140) : 'Sorteio';
+  if (kind === 'scale' || kind === 'wall' || kind === 'rating') return (c.question || '').trim() || ({ scale: 'Escala de 0 a 10', wall: 'Mural de respostas', rating: 'Avaliação do encontro' }[kind]);
+  if (kind === 'timer') { const m = Math.round((Number(c.seconds) || 180) / 60 * 10) / 10; return `Cronômetro · ${String(m).replace('.', ',')} min${c.label ? ' · ' + c.label : ''}`.slice(0, 140); }
+  if (kind === 'leaderboard') return (c.heading || '').trim() || 'Ranking do evento';
   return 'Atividade';
 }
 
@@ -302,7 +310,12 @@ export default function Editor() {
 
                 {current.kind === 'slide' ? <SlideForm c={draft} upd={upd} setErr={setErr} /> : null}
                 {current.kind === 'cloud' ? <CloudForm c={draft} upd={upd} /> : null}
-                {current.kind === 'choice' ? <ChoiceForm c={draft} upd={upd} /> : null}
+                {current.kind === 'choice' ? <ChoiceForm c={draft} upd={upd} others={acts.filter((x) => x.kind === 'choice' && x.id !== current.id)} /> : null}
+                {current.kind === 'scale' ? <ScaleForm c={draft} upd={upd} /> : null}
+                {current.kind === 'wall' ? <WallForm c={draft} upd={upd} /> : null}
+                {current.kind === 'rating' ? <RatingForm c={draft} upd={upd} /> : null}
+                {current.kind === 'timer' ? <TimerForm c={draft} upd={upd} /> : null}
+                {current.kind === 'leaderboard' ? <LeaderboardForm c={draft} upd={upd} /> : null}
                 {current.kind === 'quiz' ? <QuizForm c={draft} upd={upd} /> : null}
                 {current.kind === 'qa' ? <QaForm c={draft} upd={upd} /> : null}
                 {current.kind === 'raffle' ? <RaffleForm c={draft} upd={upd} /> : null}
@@ -379,6 +392,15 @@ function SlideForm({ c, upd, setErr }) {
       {c.mode === 'youtube' ? (
         <div className="field"><label htmlFor="s-y">Link do vídeo do YouTube</label><input id="s-y" className="input" placeholder="https://www.youtube.com/watch?v=…" value={c.youtubeUrl || ''} onChange={(e) => upd({ youtubeUrl: e.target.value })} /><span className="hint">O vídeo toca no telão. O palestrante dá o play na tela do projetor.</span></div>
       ) : null}
+      <div className="card stack" style={{ gap: 10, background: '#FAFBFC' }}>
+        <span className="label">Botão no celular (opcional)</span>
+        <span className="hint" style={{ marginTop: -6 }}>Enquanto este slide estiver no telão, o celular de todos mostra um botão com este link. Ideal para formulário de presença, material da aula ou pesquisa.</span>
+        <div className="row" style={{ gap: 10, alignItems: 'flex-end' }}>
+          <div className="field" style={{ flex: '1 1 160px' }}><label htmlFor="s-ll">Texto do botão</label><input id="s-ll" className="input" placeholder="Ex.: Abrir formulário de presença" maxLength={40} value={c.linkLabel || ''} onChange={(e) => upd({ linkLabel: e.target.value })} /></div>
+          <div className="field" style={{ flex: '2 1 260px' }}><label htmlFor="s-lu">Link</label><input id="s-lu" className="input" type="url" placeholder="https://forms.gle/…" value={c.linkUrl || ''} onChange={(e) => upd({ linkUrl: e.target.value })} /></div>
+        </div>
+        {c.linkUrl && !/^https?:\/\//i.test(c.linkUrl) ? <span className="hint" style={{ color: 'var(--danger)' }}>O link precisa começar com https://</span> : null}
+      </div>
     </div>
   );
 }
@@ -394,7 +416,7 @@ function CloudForm({ c, upd }) {
   );
 }
 
-function ChoiceForm({ c, upd }) {
+function ChoiceForm({ c, upd, others = [] }) {
   const opts = c.options || [];
   const setOpt = (i, v) => upd({ options: opts.map((o, j) => (j === i ? v : o)) });
   const [ai, setAi] = useState(false);
@@ -417,6 +439,16 @@ function ChoiceForm({ c, upd }) {
       <label className="check"><input type="checkbox" checked={c.showResults !== false} onChange={(e) => upd({ showResults: e.target.checked })} />Mostrar o gráfico no celular de quem já votou</label>
       {c.multi ? (
         <div className="field" style={{ maxWidth: 260 }}><label htmlFor="m-max">Máximo de opções por pessoa</label><input id="m-max" type="number" min={1} max={opts.length} className="input" value={c.maxSelect || 2} onChange={(e) => upd({ maxSelect: e.target.value })} /></div>
+      ) : null}
+      {others.length ? (
+        <div className="field">
+          <label htmlFor="m-cmp">Antes × depois (opcional)</label>
+          <select id="m-cmp" className="input" value={c.compareWith || ''} onChange={(e) => upd({ compareWith: e.target.value })}>
+            <option value="">Não comparar</option>
+            {others.map((o) => <option key={o.id} value={o.id}>Comparar com: {o.title}</option>)}
+          </select>
+          <span className="hint">Use a mesma pergunta no início e no fim da aula: o telão mostra as duas barras lado a lado e quanto cada opção subiu ou desceu. As opções precisam ser iguais nas duas. Dica: use “Duplicar” na primeira enquete.</span>
+        </div>
       ) : null}
     </div>
   );
@@ -474,6 +506,11 @@ function QuizForm({ c, upd }) {
         );
       })}
       <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={addQ}>+ Adicionar pergunta</button>
+      <div className="card stack" style={{ gap: 8, background: '#FAFBFC' }}>
+        <label htmlFor="qz-teams" className="label">Quiz por equipes (opcional)</label>
+        <textarea id="qz-teams" className="textarea" rows={3} placeholder={'Uma equipe por linha, ex.:\nMesa 1\nMesa 2\nMesa 3'} value={(c.teams || []).join('\n')} onChange={(e) => upd({ teams: e.target.value.split('\n').slice(0, 8) })} />
+        <span className="hint">De 2 a 8 equipes (mesas, setores, lojas…). Cada pessoa escolhe a sua no celular antes da pergunta, e o ranking no telão mostra a média de pontos de cada equipe. Deixe em branco para quiz individual.</span>
+      </div>
     </div>
   );
 }
@@ -493,7 +530,69 @@ function RaffleForm({ c, upd }) {
     <div className="stack" style={{ gap: 14 }}>
       <div className="field"><label htmlFor="rf-p">Prêmio (opcional)</label><input id="rf-p" className="input" placeholder="Ex.: Um livro autografado" value={c.prize || ''} maxLength={80} onChange={(e) => upd({ prize: e.target.value })} /></div>
       <label className="check"><input type="checkbox" checked={c.onlyNamed !== false} onChange={(e) => upd({ onlyNamed: e.target.checked })} />Sortear só quem entrou com nome</label>
+      <label className="check"><input type="checkbox" checked={!!c.weighted} onChange={(e) => upd({ weighted: e.target.checked })} />Sorteio por participação: quem respondeu mais tem mais chances</label>
       <p className="hint">No telão, os nomes giram por alguns segundos até parar no sorteado. O celular do ganhador avisa e vibra. Você pode sortear mais de uma pessoa; quem já ganhou não sai de novo.</p>
+    </div>
+  );
+}
+
+function ScaleForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="sc-q">Pergunta</label><input id="sc-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Ex.: “De 0 a 10, quanto sua equipe confia nas suas decisões?”</span></div>
+      <div className="row" style={{ gap: 10 }}>
+        <div className="field" style={{ flex: 1 }}><label htmlFor="sc-min">O que significa 0</label><input id="sc-min" className="input" maxLength={30} value={c.minLabel || ''} onChange={(e) => upd({ minLabel: e.target.value })} placeholder="Nada" /></div>
+        <div className="field" style={{ flex: 1 }}><label htmlFor="sc-max">O que significa 10</label><input id="sc-max" className="input" maxLength={30} value={c.maxLabel || ''} onChange={(e) => upd({ maxLabel: e.target.value })} placeholder="Totalmente" /></div>
+      </div>
+      <label className="check"><input type="checkbox" checked={c.showResults !== false} onChange={(e) => upd({ showResults: e.target.checked })} />Mostrar a média no celular de quem já respondeu</label>
+    </div>
+  );
+}
+
+function WallForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="wl-q">Pergunta para o mural</label><input id="wl-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Cada pessoa escreve até 3 frases curtas (120 caracteres). No telão elas aparecem como cartões; os colegas podem curtir.</span></div>
+      <label className="check"><input type="checkbox" checked={c.moderate !== false} onChange={(e) => upd({ moderate: e.target.checked })} />Aprovar as frases antes de aparecerem no telão (recomendado)</label>
+      <p className="hint">No painel de controle você aprova, oculta ou destaca uma frase em tela cheia.</p>
+    </div>
+  );
+}
+
+function RatingForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="rt-q">Pergunta</label><input id="rt-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /></div>
+      <label className="check"><input type="checkbox" checked={c.comment !== false} onChange={(e) => upd({ comment: e.target.checked })} />Pedir um comentário (opcional para o público)</label>
+      <p className="hint">O telão mostra a média e as estrelas. Os comentários não aparecem no telão: vão só para o relatório em PDF e a planilha.</p>
+    </div>
+  );
+}
+
+function TimerForm({ c, upd }) {
+  const secs = Number(c.seconds) || 180;
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="tm-l">Instrução da dinâmica</label><input id="tm-l" className="input" value={c.label || ''} maxLength={120} onChange={(e) => upd({ label: e.target.value })} placeholder="Ex.: Converse com quem está ao seu lado" /></div>
+      <div className="field">
+        <span className="label">Tempo</span>
+        <div className="row" style={{ gap: 8 }}>
+          {[60, 120, 180, 300, 600].map((v) => <button key={v} type="button" className={'btn btn-sm' + (secs === v ? ' btn-dark' : '')} onClick={() => upd({ seconds: v })}>{v / 60} min</button>)}
+          <input aria-label="Minutos" type="number" min={0.5} max={60} step={0.5} className="input" style={{ width: 100 }} value={secs / 60} onChange={(e) => upd({ seconds: Math.round((parseFloat(e.target.value) || 1) * 60) })} />
+          <span className="muted">minutos</span>
+        </div>
+      </div>
+      <p className="hint">No evento, o botão de avançar vira “Iniciar cronômetro”. No painel dá para pausar, somar ou tirar 1 minuto. O celular de todos mostra o mesmo tempo.</p>
+    </div>
+  );
+}
+
+function LeaderboardForm({ c, upd }) {
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="field"><label htmlFor="lb-h">Título</label><input id="lb-h" className="input" value={c.heading || ''} maxLength={80} onChange={(e) => upd({ heading: e.target.value })} placeholder="Ranking do evento" /></div>
+      <div className="field" style={{ maxWidth: 220 }}><label htmlFor="lb-t">Quantas pessoas mostrar</label><input id="lb-t" type="number" min={3} max={10} className="input" value={c.top || 10} onChange={(e) => upd({ top: e.target.value })} /></div>
+      <p className="hint">Pontos de participação no evento todo: 10 por resposta (palavra, voto, escala, avaliação, resposta de quiz), 15 por pergunta ou frase no mural, mais os pontos do quiz. O telão mostra o pódio; cada celular mostra a posição da pessoa. Coloque perto do fim do evento.</p>
     </div>
   );
 }

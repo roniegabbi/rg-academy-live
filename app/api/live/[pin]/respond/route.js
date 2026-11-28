@@ -72,5 +72,24 @@ export async function POST(req, { params }) {
     return json({ ok: true });
   }
 
+  if (act.kind === 'scale') {
+    const v = parseInt(body.value, 10);
+    if (!(v >= 0 && v <= 10)) return error('Escolha uma nota de 0 a 10.');
+    const ins = await sql`INSERT INTO responses (event_id, activity_id, participant_id, options) VALUES (${ev.event_id}, ${act.id}, ${ev.participant_id}, ${[v]}) ON CONFLICT DO NOTHING RETURNING id`;
+    if (!ins.length) return error('Você já respondeu.', 409);
+    return json({ ok: true });
+  }
+
+  if (act.kind === 'rating') {
+    const stars = parseInt(body.stars, 10);
+    if (!(stars >= 1 && stars <= 5)) return error('Escolha de 1 a 5 estrelas.');
+    const comment = c.comment === false ? '' : String(body.comment || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (comment && isBlocked(comment)) return error('Seu comentário tem palavras não permitidas. Reescreva, por favor.', 422);
+    const had = await sql`SELECT 1 FROM responses WHERE activity_id = ${act.id} AND participant_id = ${ev.participant_id} LIMIT 1`;
+    if (had.length) return error('Você já avaliou. Obrigado!', 409);
+    await sql`INSERT INTO responses (event_id, activity_id, participant_id, options, text_value) VALUES (${ev.event_id}, ${act.id}, ${ev.participant_id}, ${[stars]}, ${comment || null})`;
+    return json({ ok: true });
+  }
+
   return error('Esta atividade não recebe respostas.', 409);
 }

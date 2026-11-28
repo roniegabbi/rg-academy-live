@@ -206,6 +206,7 @@ function CloudScreen({ results }) {
 }
 
 function ChoiceScreen({ a, results, foot }) {
+  if (results && results.before) return <CompareScreen a={a} results={results} foot={foot} />;
   const counts = (results && results.counts) || [];
   const total = counts.reduce((s, n) => s + n, 0);
   const top = Math.max(0, ...counts);
@@ -272,7 +273,11 @@ function QuizScreen({ a, run, results, data, now, foot }) {
       </>
     );
   }
-  if (phase === 'rank') return <Podium ranking={(results && results.ranking) || []} />;
+  if (phase === 'rank') {
+    const teams = results && results.teams;
+    if (teams && teams.length) return <TeamsRank teams={teams} ranking={(results && results.ranking) || []} />;
+    return <Podium ranking={(results && results.ranking) || []} />;
+  }
   const revealed = phase === 'reveal';
   const counts = (results && results.counts) || [];
   const answered = (results && results.answered) || 0;
@@ -342,7 +347,7 @@ function initials(name) {
   return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
 
-function Podium({ ranking }) {
+function Podium({ ranking, title = 'Ranking do quiz', empty = 'Ninguém pontuou nesta rodada.' }) {
   const p1 = ranking[0];
   const p2 = ranking[1];
   const p3 = ranking[2];
@@ -362,9 +367,9 @@ function Podium({ ranking }) {
     <>
       <Backdrop />
       <div style={{ position: 'absolute', left: 48, right: 48, top: 92, textAlign: 'center' }}>
-        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Ranking do quiz</span>
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>{title}</span>
       </div>
-      {!ranking.length ? <p style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: '#9FB3C6' }}>Ninguém pontuou nesta rodada.</p> : (
+      {!ranking.length ? <p style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: '#9FB3C6' }}>{empty}</p> : (
         <>
           <div style={{ position: 'absolute', left: rest.length ? 40 : 200, top: 130, bottom: 0, width: 880, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 16 }}>
             {col(p2, 2, 150, '#A9D8FF', 'linear-gradient(180deg, #C9D6E2, #8FA6BA)', <Medal n={2} c1="#D9E2EA" c2="#9FB3C6" ribbon="#2F6FDE" label="Medalha de prata, 2º lugar" />, 0.35)}
@@ -425,7 +430,7 @@ function QaScreen({ a, run, results, foot }) {
       <>
         <Backdrop glow="center" />
         <div style={{ position: 'absolute', left: 120, right: 120, top: 110, bottom: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
-          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Pergunta do público</span>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>{a.kind === 'wall' ? 'Mural da turma' : 'Pergunta do público'}</span>
           <div style={{ position: 'relative' }}>
             <span aria-hidden="true" style={{ position: 'absolute', left: -78, top: -46, fontSize: 160, lineHeight: 1, fontWeight: 900, color: 'rgba(127,211,95,0.35)' }}>“</span>
             <h1 style={{ margin: 0, fontSize: size, lineHeight: 1.12, fontWeight: 700, letterSpacing: '-0.01em' }}>{hl.text}</h1>
@@ -549,6 +554,229 @@ function Confetti() {
   );
 }
 
+/* ---------- quiz por equipes ---------- */
+
+function TeamsRank({ teams, ranking }) {
+  const top = Math.max(1, ...teams.map((t) => t.avg));
+  return (
+    <>
+      <Backdrop />
+      <div style={{ position: 'absolute', left: 48, right: 48, top: 92, textAlign: 'center' }}>
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Ranking das equipes</span>
+      </div>
+      <div style={{ position: 'absolute', left: 48, width: 800, top: 150, bottom: 70, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: teams.length > 5 ? 10 : 16 }}>
+        {teams.map((t, i) => (
+          <div key={t.name} className="podium-in" style={{ display: 'flex', alignItems: 'center', gap: 16, animationDelay: (teams.length - i) * 0.12 + 's' }}>
+            <span style={{ width: 54, fontSize: 30, fontWeight: 800, color: i === 0 ? '#7FD35F' : '#9FB3C6' }}>{i + 1}º</span>
+            <div style={{ position: 'relative', flex: 1, height: teams.length > 5 ? 52 : 66, borderRadius: 14, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+              <div className="bar-grow" style={{ position: 'absolute', inset: 0, width: Math.max(4, (t.avg / top) * 100) + '%', background: i === 0 ? 'linear-gradient(90deg, #3C9C25, #5CC63E)' : 'rgba(111,183,255,0.35)', borderRadius: 14 }} />
+              <span style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', fontSize: 26, fontWeight: 700, color: i === 0 && t.avg / top > 0.4 ? '#0B2238' : '#fff' }}>{t.name} <span style={{ fontSize: 17, fontWeight: 600, opacity: 0.75 }}>· {t.members} {t.members === 1 ? 'pessoa' : 'pessoas'}</span></span>
+            </div>
+            <span style={{ width: 120, textAlign: 'right', fontSize: 28, fontWeight: 800 }}>{t.avg.toLocaleString('pt-BR')}</span>
+          </div>
+        ))}
+        <span style={{ fontSize: 16, color: '#9FB3C6' }}>Média de pontos por integrante</span>
+      </div>
+      <div style={{ position: 'absolute', right: 48, top: 170, width: 330, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9FB3C6' }}>Destaques individuais</span>
+        {ranking.slice(0, 5).map((r) => (
+          <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 14, background: r.pos === 1 ? 'rgba(69,176,43,0.18)' : 'rgba(255,255,255,0.06)', fontSize: 19 }}>
+            <strong style={{ width: 32, color: r.pos === 1 ? '#7FD35F' : '#9FB3C6' }}>{r.pos}º</strong>
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+            <strong>{r.score.toLocaleString('pt-BR')}</strong>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ---------- antes × depois ---------- */
+
+function CompareScreen({ a, results, foot }) {
+  const now = results.counts || [];
+  const before = results.before.counts || [];
+  const tn = now.reduce((x, y) => x + y, 0);
+  const tb = before.reduce((x, y) => x + y, 0);
+  const n = a.options.length;
+  const rowH = n <= 3 ? 108 : n <= 5 ? 82 : 62;
+  return (
+    <>
+      <Backdrop />
+      <Question eyebrow="Antes × depois" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{results.voters}</strong> {results.voters === 1 ? 'voto agora' : 'votos agora'}</Pill>} />
+      <div style={{ position: 'absolute', left: 48, right: 48, top: 228, bottom: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: n <= 5 ? 16 : 10 }}>
+        <div style={{ display: 'flex', gap: 24, fontSize: 17, color: '#C9D6E2', marginLeft: 360 }}>
+          <span><span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, background: 'rgba(201,214,226,0.45)', marginRight: 8 }} />Antes</span>
+          <span><span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, background: '#5CC63E', marginRight: 8 }} />Agora</span>
+        </div>
+        {a.options.map((label, i) => {
+          const pb = tb ? Math.round(((before[i] || 0) / tb) * 100) : 0;
+          const pn = tn ? Math.round(((now[i] || 0) / tn) * 100) : 0;
+          const diff = pn - pb;
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 20, height: rowH }}>
+              <span style={{ width: 340, fontSize: n <= 5 ? 24 : 20, fontWeight: 700, lineHeight: 1.15 }}>{label}</span>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ height: rowH * 0.3, borderRadius: 8, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}><div className="bar-grow" style={{ width: pb + '%', height: '100%', background: 'rgba(201,214,226,0.45)', borderRadius: 8 }} /></div>
+                <div style={{ height: rowH * 0.38, borderRadius: 8, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}><div className="bar-grow" style={{ width: pn + '%', height: '100%', background: 'linear-gradient(90deg, #3C9C25, #5CC63E)', borderRadius: 8, transition: 'width .8s cubic-bezier(.2,.8,.2,1)' }} /></div>
+              </div>
+              <div style={{ width: 170, textAlign: 'right' }}>
+                <div style={{ fontSize: 15, color: '#9FB3C6' }}>{pb}% → <strong style={{ color: '#fff', fontSize: 30 }}>{pn}%</strong></div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: diff > 0 ? '#7FD35F' : diff < 0 ? '#F28B82' : '#9FB3C6' }}>{diff > 0 ? `▲ +${diff}` : diff < 0 ? `▼ ${diff}` : '='} pts</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {foot}
+    </>
+  );
+}
+
+/* ---------- mural ---------- */
+
+function WallScreen({ a, results, foot }) {
+  const posts = ((results && results.questions) || []).filter((q) => q.status !== 'pending').slice(0, 9);
+  const big = posts.length <= 4;
+  return (
+    <>
+      <Backdrop />
+      <Question eyebrow="Mural da turma" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{posts.length}</strong> {posts.length === 1 ? 'frase' : 'frases'}</Pill>} />
+      {posts.length ? (
+        <div style={{ position: 'absolute', left: 48, right: 48, top: 220, bottom: 100, display: 'grid', gridTemplateColumns: `repeat(${big ? 2 : 3}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: 16 }}>
+          {posts.map((p, i) => (
+            <div key={p.id} className="stage-in" style={{ padding: big ? '22px 26px' : '16px 20px', borderRadius: 20, background: i % 3 === 0 ? 'rgba(69,176,43,0.16)' : 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10, overflow: 'hidden' }}>
+              <span style={{ fontSize: big ? 30 : p.text.length > 80 ? 19 : 23, fontWeight: 600, lineHeight: 1.25 }}>“{p.text}”</span>
+              <span style={{ fontSize: big ? 18 : 15, color: '#9FB3C6', display: 'flex', justifyContent: 'space-between' }}><span>{p.author || 'Anônimo'}</span>{p.likes ? <span>👍 {p.likes}</span> : null}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ position: 'absolute', left: 48, right: 48, top: 230, bottom: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center' }}>
+          <span style={{ fontSize: 72 }} aria-hidden="true">✍️</span>
+          <p style={{ margin: 0, fontSize: 34, fontWeight: 600 }}>Escreva sua frase pelo celular</p>
+          <p style={{ margin: 0, fontSize: 22, color: '#9FB3C6' }}>As frases aparecem aqui no mural.</p>
+        </div>
+      )}
+      {foot}
+    </>
+  );
+}
+
+/* ---------- escala 0 a 10 ---------- */
+
+function ScaleScreen({ a, results, foot }) {
+  const counts = (results && results.counts) || Array(11).fill(0);
+  const voters = (results && results.voters) || 0;
+  const avg = results && results.avg != null ? results.avg : null;
+  const top = Math.max(1, ...counts);
+  return (
+    <>
+      <Backdrop />
+      <Question eyebrow="Escala de 0 a 10" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{voters}</strong> {voters === 1 ? 'resposta' : 'respostas'}</Pill>} />
+      <div style={{ position: 'absolute', left: 48, top: 236, width: 300, bottom: 110, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: 4 }}>
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9FB3C6' }}>Média</span>
+        <span style={{ fontSize: 150, fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.04em', color: '#7FD35F' }}>{avg == null ? '–' : avg.toFixed(1).replace('.', ',')}</span>
+        <span style={{ fontSize: 22, color: '#C9D6E2' }}>de 10</span>
+      </div>
+      <div style={{ position: 'absolute', left: 380, right: 48, top: 250, bottom: 110, display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+        {counts.map((c, i) => (
+          <div key={i} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: c ? '#fff' : '#5E758A' }}>{c}</span>
+            <div className="bar-grow" style={{ width: '100%', height: Math.max(4, (c / top) * 100) + '%', maxHeight: 'calc(100% - 70px)', borderRadius: '10px 10px 4px 4px', background: i >= 9 ? 'linear-gradient(180deg, #5CC63E, #3C9C25)' : i <= 6 ? 'rgba(242,139,130,0.55)' : 'rgba(201,214,226,0.5)', transition: 'height .8s cubic-bezier(.2,.8,.2,1)' }} />
+            <span style={{ fontSize: 22, fontWeight: 800 }}>{i}</span>
+          </div>
+        ))}
+      </div>
+      {(a.minLabel || a.maxLabel) ? (
+        <div style={{ position: 'absolute', left: 380, right: 48, bottom: 80, display: 'flex', justifyContent: 'space-between', fontSize: 16, color: '#9FB3C6' }}>
+          <span>0 = {a.minLabel || 'mínimo'}</span><span>10 = {a.maxLabel || 'máximo'}</span>
+        </div>
+      ) : null}
+      {foot}
+    </>
+  );
+}
+
+/* ---------- avaliação ---------- */
+
+function RatingScreen({ a, results, foot }) {
+  const counts = (results && results.counts) || [0, 0, 0, 0, 0];
+  const voters = (results && results.voters) || 0;
+  const avg = results && results.avg != null ? results.avg : null;
+  const top = Math.max(1, ...counts);
+  const full = avg == null ? 0 : avg;
+  return (
+    <>
+      <Backdrop glow="center" />
+      <Question eyebrow="Avaliação do encontro" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{voters}</strong> {voters === 1 ? 'avaliação' : 'avaliações'}</Pill>} />
+      <div style={{ position: 'absolute', left: 48, top: 240, width: 520, bottom: 110, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
+        <span style={{ fontSize: 140, fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.04em' }}>{avg == null ? '–' : avg.toFixed(1).replace('.', ',')}</span>
+        <div style={{ position: 'relative', fontSize: 64, lineHeight: 1, letterSpacing: 6, width: 'fit-content' }} aria-label={avg == null ? 'Sem avaliações' : `Média ${avg.toFixed(1)} de 5`}>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>★★★★★</span>
+          <span style={{ position: 'absolute', left: 0, top: 0, width: (full / 5) * 100 + '%', overflow: 'hidden', whiteSpace: 'nowrap', color: '#F2B636' }}>★★★★★</span>
+        </div>
+        {results && results.comments ? <span style={{ fontSize: 18, color: '#9FB3C6', marginTop: 10 }}>{results.comments} {results.comments === 1 ? 'comentário recebido' : 'comentários recebidos'} · vão para o relatório</span> : null}
+      </div>
+      <div style={{ position: 'absolute', left: 620, right: 48, top: 260, bottom: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+        {[5, 4, 3, 2, 1].map((st) => {
+          const c = counts[st - 1] || 0;
+          return (
+            <div key={st} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ width: 60, fontSize: 22, fontWeight: 700, color: '#F2B636' }}>{st} ★</span>
+              <div style={{ flex: 1, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}><div className="bar-grow" style={{ width: (c / top) * 100 + '%', height: '100%', background: st >= 4 ? 'linear-gradient(90deg, #3C9C25, #5CC63E)' : 'rgba(201,214,226,0.45)', borderRadius: 8, transition: 'width .8s' }} /></div>
+              <span style={{ width: 50, textAlign: 'right', fontSize: 22, fontWeight: 700 }}>{c}</span>
+            </div>
+          );
+        })}
+      </div>
+      {foot}
+    </>
+  );
+}
+
+/* ---------- cronômetro ---------- */
+
+function TimerScreen({ a, data, now }) {
+  const run = data.run || {};
+  const total = (a.seconds || 180) * 1000;
+  let left = run.left != null ? run.left : total;
+  if (run.state === 'running' && run.endsAt) {
+    const offset = (data.serverNow || data._recv || now) - (data._recv || now);
+    left = Math.max(0, run.endsAt - (now + offset));
+  }
+  const over = left <= 0 && run.state === 'running';
+  const s = Math.ceil(left / 1000);
+  const clock = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const frac = Math.max(0, Math.min(1, left / total));
+  const R = 230;
+  const C = 2 * Math.PI * R;
+  const warn = !over && run.state === 'running' && left <= 10000;
+  return (
+    <>
+      <Backdrop glow="center" />
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 80, padding: '0 80px' }}>
+        <div style={{ position: 'relative', width: 520, height: 520, flex: 'none' }} className={over ? 'timer-flash' : ''}>
+          <svg width="520" height="520" viewBox="0 0 520 520" aria-hidden="true">
+            <circle cx="260" cy="260" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="22" />
+            <circle cx="260" cy="260" r={R} fill="none" stroke={over || warn ? '#F2A93B' : '#45B02B'} strokeWidth="22" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} transform="rotate(-90 260 260)" style={{ transition: 'stroke-dashoffset .3s linear' }} />
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: over ? 130 : 150, fontWeight: 900, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', color: over || warn ? '#F2A93B' : '#fff' }}>{over ? 'Tempo!' : clock}</span>
+            <span style={{ fontSize: 22, color: '#9FB3C6' }}>{over ? 'Hora de voltar' : run.state === 'running' ? 'restantes' : run.state === 'paused' ? 'pausado' : 'pronto para começar'}</span>
+          </div>
+        </div>
+        {a.label ? (
+          <div style={{ maxWidth: 520 }}>
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7FD35F' }}>Dinâmica</span>
+            <h1 style={{ margin: '12px 0 0', fontSize: a.label.length > 60 ? 44 : 56, lineHeight: 1.08, fontWeight: 800 }}>{a.label}</h1>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 // QR por cima da tela atual: o evento continua exatamente onde estava por baixo.
 function QrOverlay({ joinUrl, pin, participants }) {
   return (
@@ -622,6 +850,7 @@ export default function Telao({ data, joinUrl, full = false }) {
     else if (a.mode === 'image') screen = <ImageSlide a={a} />;
     else if (a.mode === 'youtube') screen = <VideoSlide a={a} />;
     else screen = <TextSlide a={a} />;
+    if (a.linkUrl) screen = <>{screen}<div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center' }}><span style={{ padding: '10px 20px', borderRadius: 999, background: 'rgba(8,26,44,0.82)', border: '1px solid rgba(127,211,95,0.5)', color: '#fff', fontSize: 20, fontWeight: 600 }}>📱 {a.linkLabel || 'Link'} disponível no seu celular</span></div></>;
   } else if (a.kind === 'cloud') {
     key = a.id;
     screen = <CloudScreen results={results} />;
@@ -631,6 +860,21 @@ export default function Telao({ data, joinUrl, full = false }) {
   } else if (a.kind === 'qa') {
     key = `${a.id}:${run.highlight || 'list'}`;
     screen = <QaScreen a={a} run={run} results={results} foot={foot} />;
+  } else if (a.kind === 'wall') {
+    key = `${a.id}:${run.highlight || 'wall'}`;
+    screen = run.highlight ? <QaScreen a={a} run={run} results={results} foot={foot} /> : <WallScreen a={a} results={results} foot={foot} />;
+  } else if (a.kind === 'scale') {
+    key = a.id;
+    screen = <ScaleScreen a={a} results={results} foot={foot} />;
+  } else if (a.kind === 'rating') {
+    key = a.id;
+    screen = <RatingScreen a={a} results={results} foot={foot} />;
+  } else if (a.kind === 'timer') {
+    key = a.id;
+    screen = <TimerScreen a={a} data={data} now={now} />;
+  } else if (a.kind === 'leaderboard') {
+    key = a.id;
+    screen = <Podium ranking={(results && results.ranking) || []} title={a.heading || 'Ranking do evento'} empty="Ainda ninguém pontuou no evento." />;
   } else if (a.kind === 'raffle') {
     key = `${a.id}:${((results && results.winners) || []).length}`;
     screen = <RaffleScreen a={a} run={run} results={results} data={data} now={now} foot={foot} />;

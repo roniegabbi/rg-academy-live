@@ -76,8 +76,8 @@ export async function POST(req, { params }) {
     case 'clearActivity': {
       const act = acts[index];
       if (act) await sql`DELETE FROM responses WHERE activity_id = ${act.id}`;
-      if (act && act.kind === 'qa') await sql`DELETE FROM questions WHERE activity_id = ${act.id}`;
-      if (act && (act.kind === 'quiz' || act.kind === 'qa' || act.kind === 'raffle')) run = initialRun(act);
+      if (act && (act.kind === 'qa' || act.kind === 'wall')) await sql`DELETE FROM questions WHERE activity_id = ${act.id}`;
+      if (act && ['quiz', 'qa', 'wall', 'raffle', 'timer'].includes(act.kind)) run = initialRun(act);
       break;
     }
     case 'hideWord':
@@ -100,7 +100,7 @@ export async function POST(req, { params }) {
     case 'qaAnswered':
     case 'qaHighlight': {
       const act = acts[index];
-      if (!act || act.kind !== 'qa') return error('A atividade atual não é de perguntas.');
+      if (!act || !['qa', 'wall'].includes(act.kind)) return error('A atividade atual não é de perguntas nem mural.');
       const qid = String(body.questionId || '');
       if (action === 'qaHighlight' && !qid) { run = { ...run, highlight: null }; break; }
       if (!/^\d{1,18}$/.test(qid)) return error('Pergunta inválida.');
@@ -116,10 +116,15 @@ export async function POST(req, { params }) {
       if (!act || act.kind !== 'raffle') return error('A atividade atual não é um sorteio.');
       const onlyNamed = !(act.config && act.config.onlyNamed === false);
       // Sorteia entre quem ainda não ganhou (os ganhadores ficam gravados como respostas da atividade).
+      // Sorteio por participação: cada resposta/pergunta no evento vale mais uma "chance".
+      const weighted = !!(act.config && act.config.weighted);
       const pick = await sql`SELECT p.id FROM participants p
         WHERE p.event_id = ${id} AND (${!onlyNamed} OR length(trim(p.name)) >= 2)
           AND NOT EXISTS (SELECT 1 FROM responses r WHERE r.activity_id = ${act.id} AND r.participant_id = p.id)
-        ORDER BY random() LIMIT 1`;
+        ORDER BY CASE WHEN ${weighted} THEN -ln(1 - random()) / (1
+            + (SELECT count(*) FROM responses r2 JOIN activities a2 ON a2.id = r2.activity_id WHERE r2.participant_id = p.id AND a2.kind <> 'raffle')
+            + (SELECT count(*) FROM questions q2 WHERE q2.participant_id = p.id)) ELSE random() END
+        LIMIT 1`;
       if (!pick.length) return error(onlyNamed ? 'Não há mais participantes com nome para sortear.' : 'Não há mais participantes para sortear.');
       await sql`INSERT INTO responses (event_id, activity_id, participant_id, text_value) VALUES (${id}, ${act.id}, ${pick[0].id}, 'Sorteado')`;
       run = { drawnAt: Date.now() };
@@ -137,6 +142,24 @@ export async function POST(req, { params }) {
       // QR por cima do telão, sem mudar a atividade: quem caiu ou chegou atrasado entra e o evento segue do mesmo ponto.
       await sql`UPDATE events SET qr_overlay = ${action === 'qrShow'} WHERE id = ${id}`;
       break;
+    case 'timerStart':
+    case 'timerPause':
+    case 'timerReset':
+    case 'timerAdd': {
+      const act = acts[index];
+      if (!act || act.kind !== 'timer') return error('A atividade atual não é um cronômetro.');
+      const now = Date.now();
+      const left = run.state === 'running' ? Math.max(0, (run.endsAt || now) - now) : (run.left != null ? run.left : initialRun(act).left);
+      if (action === 'timerStart') run = left > 0 ? { state: 'running', endsAt: now + left, left } : run;
+      if (action === 'timerPause') run = { state: 'paused', left, endsAt: null };
+      if (action === 'timerReset') run = initialRun(act);
+      if (action === 'timerAdd') {
+        const plus = Math.max(-600000, Math.min(600000, (parseInt(body.seconds, 10) || 60) * 1000));
+        const nl = Math.max(0, left + plus);
+        run = run.state === 'running' ? { state: 'running', endsAt: now + nl, left: nl } : { ...run, state: run.state === 'done' ? 'paused' : (run.state || 'ready'), left: nl };
+      }
+      break;
+    }
     case 'clearEvent':
       await sql`DELETE FROM responses WHERE event_id = ${id}`;
       await sql`DELETE FROM questions WHERE event_id = ${id}`;

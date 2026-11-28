@@ -27,9 +27,9 @@ export async function POST(req, { params }) {
   if (ev.paused) return error('O palestrante pausou o envio de perguntas.', 409);
   const acts = await sql`SELECT id, kind, config FROM activities WHERE event_id = ${ev.event_id} ORDER BY position, created_at`;
   const act = acts[Math.min(ev.current_index, acts.length - 1)];
-  if (!act || act.kind !== 'qa' || act.id !== body.activityId) return error('O envio de perguntas foi encerrado.', 409);
+  if (!act || !['qa', 'wall'].includes(act.kind) || act.id !== body.activityId) return error(act && act.kind === 'wall' ? 'O mural foi encerrado.' : 'O envio de perguntas foi encerrado.', 409);
   const mine = await sql`SELECT count(*)::int AS n FROM questions WHERE activity_id = ${act.id} AND participant_id = ${ev.participant_id}`;
-  if (mine[0].n >= MAX_PER_PERSON) return error(`Você já enviou ${MAX_PER_PERSON} perguntas.`, 409);
+  if (mine[0].n >= MAX_PER_PERSON) return error(act.kind === 'wall' ? `Você já enviou ${MAX_PER_PERSON} frases.` : `Você já enviou ${MAX_PER_PERSON} perguntas.`, 409);
   const moderate = !(act.config && act.config.moderate === false);
   const author = body.anonymous ? '' : String(ev.name || '').trim();
   const ins = await sql`INSERT INTO questions (event_id, activity_id, participant_id, author, text, status) VALUES (${ev.event_id}, ${act.id}, ${ev.participant_id}, ${author}, ${text}, ${moderate ? 'pending' : 'approved'}) RETURNING id::text AS id, status`;

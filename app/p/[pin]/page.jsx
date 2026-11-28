@@ -172,12 +172,29 @@ function Live({ pin, data, token }) {
   if (ev.status === 'draft') return <Center icon={IconScreen} title={myName ? `${myName.split(' ')[0]}, você está dentro!` : 'Você está dentro!'} text="O evento vai começar em instantes. Deixe esta tela aberta." />;
   const reacts = ev.reactions !== false ? <ReactionBar pin={pin} token={token} /> : null;
   if (ev.status === 'ended') return <Center icon={IconCheck} title="Evento encerrado" text="Obrigado pela participação!" />;
-  if (!a || a.kind === 'slide') return <><Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />{reacts}</>;
+  if (!a || a.kind === 'slide') {
+    if (a && a.linkUrl) {
+      return (
+        <>
+          <Center icon={IconScreen} title="Olhe para o telão" text="O palestrante deixou um link para você:">
+            <a className="btn btn-primary btn-lg btn-block" href={a.linkUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>{a.linkLabel || 'Abrir link'} ↗</a>
+            <span className="hint">Abre em outra aba. Depois é só voltar para cá.</span>
+          </Center>
+          {reacts}
+        </>
+      );
+    }
+    return <><Center icon={IconScreen} title="Olhe para o telão" text="A próxima pergunta aparece aqui sozinha. Não precisa recarregar." />{reacts}</>;
+  }
+  if (a.kind === 'timer') return <TimerPhone a={a} data={data} reacts={reacts} />;
+  if (a.kind === 'leaderboard') return <LeaderboardPhone key={a.id} pin={pin} token={token} a={a} />;
   if (a.kind === 'quiz') return <QuizPhone key={a.id + ':' + a.qIndex} pin={pin} data={data} token={token} />;
   if (data.paused) return <Center icon={IconPause} title="Respostas pausadas" text="O palestrante pausou esta atividade por um instante. Aguarde." />;
   if (a.kind === 'cloud') return <CloudPhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} />;
   if (a.kind === 'choice') return <ChoicePhone key={a.id} pin={pin} a={a} token={token} index={data.index} total={data.total} results={data.results} reacts={reacts} />;
-  if (a.kind === 'qa') return <QaPhone key={a.id} pin={pin} a={a} token={token} data={data} />;
+  if (a.kind === 'qa' || a.kind === 'wall') return <QaPhone key={a.id} pin={pin} a={a} token={token} data={data} />;
+  if (a.kind === 'scale') return <ScalePhone key={a.id} pin={pin} a={a} token={token} results={data.results} reacts={reacts} />;
+  if (a.kind === 'rating') return <RatingPhone key={a.id} pin={pin} a={a} token={token} />;
   if (a.kind === 'raffle') return <RafflePhone key={a.id} pin={pin} a={a} token={token} data={data} />;
   return null;
 }
@@ -420,6 +437,7 @@ function QuizPhone({ pin, data, token }) {
             <span className="muted">Sua posição no ranking</span>
             <span style={{ fontSize: 44, fontWeight: 800 }}>{me.position}º <span style={{ fontSize: 18, color: '#4A5D70', fontWeight: 600 }}>de {me.players}</span></span>
             <span className="muted">{me.score} pontos no total</span>
+            {(a.teams || []).length && store.get(`rg:${pin}:team`) ? <span className="hint" style={{ fontSize: 15 }}>Sua equipe: <b>{store.get(`rg:${pin}:team`)}</b> · veja o ranking das equipes no telão</span> : null}
             {me.streak >= 2 ? <span style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>🔥 {me.streak} acertos seguidos!</span> : null}
             {me.position > 1 && me.gap > 0 ? <span className="hint" style={{ fontSize: 15 }}>Faltam {me.gap} pontos para passar o {me.position - 1}º lugar</span> : null}
             {me.position === 1 && me.score > 0 ? <span style={{ fontSize: 16, fontWeight: 700, color: '#2E7D1E' }}>Você está na liderança! 🏆</span> : null}
@@ -432,6 +450,7 @@ function QuizPhone({ pin, data, token }) {
   if (phase === 'ready') {
     return (
       <Center icon={IconScreen} title={`Pergunta ${a.qIndex + 1} de ${a.qTotal}`} text="Prepare-se! A pergunta aparece aqui quando o palestrante liberar.">
+        {(a.teams || []).length ? <TeamPicker pin={pin} token={token} teams={a.teams} /> : null}
         <RankingName pin={pin} token={token} />
       </Center>
     );
@@ -481,10 +500,13 @@ function QaPhone({ pin, a, token, data }) {
   const shown = new Set(list.map((q) => q.id));
   const waiting = mine.filter((m) => !shown.has(m.id));
   const MAX = 3;
+  const W = a.kind === 'wall';
+  const minLen = W ? 3 : 5;
+  const noun = W ? 'frase' : 'pergunta';
 
   const send = async (e) => {
     e.preventDefault();
-    if (text.trim().length < 5) return;
+    if (text.trim().length < minLen) return;
     setBusy(true); setErr('');
     const r = await api(`/api/live/${pin}/ask`, { method: 'POST', body: { token, activityId: a.id, text, anonymous: anon } });
     setBusy(false);
@@ -492,7 +514,7 @@ function QaPhone({ pin, a, token, data }) {
     const next = [...mine, { id: r.id, text: text.trim() }];
     setMine(next); store.set(mineKey, JSON.stringify(next));
     setText('');
-    setFlash(r.status === 'pending' ? 'Pergunta enviada! Ela aparece aqui quando o palestrante aprovar.' : 'Pergunta enviada!');
+    setFlash(r.status === 'pending' ? `${W ? 'Frase enviada' : 'Pergunta enviada'}! Ela aparece aqui quando o palestrante aprovar.` : `${W ? 'Frase enviada' : 'Pergunta enviada'}!`);
     setTimeout(() => setFlash(''), 3500);
   };
   const like = async (q) => {
@@ -506,18 +528,18 @@ function QaPhone({ pin, a, token, data }) {
 
   return (
     <div className="phone-body" style={{ gap: 14 }}>
-      <Header kind="Perguntas ao palestrante" index={data.index} total={data.total} question={a.question} />
+      <Header kind={W ? 'Mural' : 'Perguntas ao palestrante'} question={a.question} />
       {mine.length < MAX ? (
         <form onSubmit={send} className="stack" style={{ gap: 8 }}>
-          <label htmlFor="qa-t" className="label" style={{ fontSize: 16 }}>Sua pergunta</label>
-          <textarea id="qa-t" className="textarea" style={{ fontSize: 18, minHeight: 96 }} maxLength={200} value={text} onChange={(e) => setText(e.target.value)} placeholder="Escreva aqui…" />
+          <label htmlFor="qa-t" className="label" style={{ fontSize: 16 }}>{W ? 'Sua frase' : 'Sua pergunta'}</label>
+          <textarea id="qa-t" className="textarea" style={{ fontSize: 18, minHeight: 96 }} maxLength={W ? 120 : 200} value={text} onChange={(e) => setText(e.target.value)} placeholder={W ? 'Escreva sua frase…' : 'Escreva aqui…'} />
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <label className="check" style={{ fontSize: 15 }}><input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} />Enviar sem meu nome</label>
             <span className="hint">{text.length} / 200</span>
           </div>
-          <button className="btn btn-primary btn-lg btn-block" disabled={busy || text.trim().length < 5}>{busy ? 'Enviando…' : 'Enviar pergunta'}</button>
+          <button className="btn btn-primary btn-lg btn-block" disabled={busy || text.trim().length < minLen}>{busy ? 'Enviando…' : (W ? 'Enviar frase' : 'Enviar pergunta')}</button>
         </form>
-      ) : <p className="hint" style={{ fontSize: 15 }}>Você já enviou {MAX} perguntas. Agora é só curtir as dos colegas.</p>}
+      ) : <p className="hint" style={{ fontSize: 15 }}>Você já enviou {MAX} {W ? 'frases' : 'perguntas'}. Agora é só curtir as dos colegas.</p>}
       {flash ? <div className="ok-box" role="status" style={{ fontWeight: 600 }}>{flash}</div> : null}
       {err ? <div className="alert" role="alert">{err}</div> : null}
       {waiting.length && a.moderate ? (
@@ -527,7 +549,7 @@ function QaPhone({ pin, a, token, data }) {
         </div>
       ) : null}
       <div className="stack" style={{ gap: 8 }}>
-        <span className="eyebrow">{list.length ? 'Curta as que você também quer ouvir' : 'As perguntas da turma aparecem aqui'}</span>
+        <span className="eyebrow">{list.length ? (W ? 'Curta as frases que mais tocaram você' : 'Curta as que você também quer ouvir') : (W ? 'As frases da turma aparecem aqui' : 'As perguntas da turma aparecem aqui')}</span>
         {list.map((q) => {
           const on = liked.includes(q.id);
           const done = q.status === 'answered';
@@ -537,9 +559,9 @@ function QaPhone({ pin, a, token, data }) {
             <div key={q.id} className="card row" style={{ padding: '12px 14px', gap: 12, flexWrap: 'nowrap', alignItems: 'center', opacity: done ? 0.6 : 1 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>{q.text}</div>
-                <div className="hint" style={{ fontSize: 13 }}>{q.author || 'Anônimo'}{done ? ' · respondida' : ''}{own ? ' · sua pergunta' : ''}</div>
+                <div className="hint" style={{ fontSize: 13 }}>{q.author || 'Anônimo'}{done ? ' · respondida' : ''}{own ? (W ? ' · sua frase' : ' · sua pergunta') : ''}</div>
               </div>
-              <button onClick={() => like(q)} disabled={on || done || own} aria-pressed={on} aria-label={own ? `Sua pergunta. ${likes} curtidas` : on ? `Você curtiu. ${likes} curtidas` : `Curtir pergunta. ${likes} curtidas`}
+              <button onClick={() => like(q)} disabled={on || done || own} aria-pressed={on} aria-label={own ? `Sua ${noun}. ${likes} curtidas` : on ? `Você curtiu. ${likes} curtidas` : `Curtir ${noun}. ${likes} curtidas`}
                 style={{ flex: 'none', minWidth: 64, height: 48, borderRadius: 14, border: on ? '2px solid #45B02B' : '2px solid var(--line-2)', background: on ? '#E8F6E3' : own ? '#F4F6F8' : '#fff', fontSize: 17, fontWeight: 700, cursor: on || done || own ? 'default' : 'pointer' }}>
                 👍 {likes}
               </button>
@@ -601,7 +623,7 @@ function RafflePhone({ pin, a, token, data }) {
     );
   }
   return (
-    <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🍀</div>} title="Você está concorrendo!" text={a.prize ? `Prêmio: ${a.prize}. O sorteio acontece no telão.` : 'O sorteio acontece no telão. Boa sorte!'}>
+    <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>🍀</div>} title="Você está concorrendo!" text={(a.prize ? `Prêmio: ${a.prize}. O sorteio acontece no telão.` : 'O sorteio acontece no telão. Boa sorte!') + (a.weighted ? ' Quem participou mais tem mais chances!' : '')}>
       {a.onlyNamed ? <RankingName pin={pin} token={token} label="Só participa quem tem nome. Como você se chama?" /> : null}
     </Center>
   );
@@ -627,6 +649,186 @@ function PhoneBars({ options, counts, voters, mine }) {
         );
       })}
       <span className="hint" style={{ textAlign: 'center' }}>{people} {people === 1 ? 'pessoa votou' : 'pessoas votaram'} até agora · ao vivo</span>
+    </div>
+  );
+}
+
+// Escala de 0 a 10.
+function ScalePhone({ pin, a, token, results, reacts }) {
+  const key = `rg:${pin}:${a.id}:voted`;
+  const [picked, setPicked] = useState(null);
+  const [voted, setVoted] = useState(() => store.get(key) || '');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    if (picked == null) return;
+    setBusy(true); setErr('');
+    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, value: picked } });
+    setBusy(false);
+    if (!r.ok && !/já respondeu/.test(r.error || '')) { setErr(r.error); return; }
+    store.set(key, String(picked));
+    setVoted(String(picked));
+  };
+  if (voted !== '') {
+    const live = a.showResults !== false && results && results.avg != null;
+    return (
+      <>
+        <Center icon={live ? IconCheckSmall : IconCheck} title="Resposta registrada!" text={`Você deu nota ${voted}.`}>
+          {live ? (
+            <div className="card stack" style={{ alignItems: 'center', gap: 2, width: '100%' }}>
+              <span className="muted">Média da turma até agora</span>
+              <span style={{ fontSize: 48, fontWeight: 800, lineHeight: 1.1 }}>{results.avg.toFixed(1).replace('.', ',')}</span>
+              <span className="hint">{results.voters} {results.voters === 1 ? 'pessoa respondeu' : 'pessoas responderam'} · ao vivo</span>
+            </div>
+          ) : null}
+        </Center>
+        {reacts}
+      </>
+    );
+  }
+  return (
+    <div className="phone-body">
+      <Header kind="Escala de 0 a 10" question={a.question} />
+      <span className="hint" style={{ fontSize: 15, marginTop: -6 }}>Toque numa nota e envie</span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 }}>
+          {Array.from({ length: 11 }, (_, i) => (
+            <button key={i} onClick={() => setPicked(i)} aria-pressed={picked === i} aria-label={`Nota ${i}`}
+              style={{ height: 56, borderRadius: 14, fontSize: 22, fontWeight: 800, border: picked === i ? '2px solid var(--green-text)' : '2px solid var(--line-2)', background: picked === i ? 'var(--green)' : '#fff', color: 'var(--navy)', cursor: 'pointer', gridColumn: i === 10 ? 'span 1' : undefined }}>
+              {i}
+            </button>
+          ))}
+        </div>
+        {(a.minLabel || a.maxLabel) ? (
+          <div className="row" style={{ justifyContent: 'space-between', fontSize: 14 }}>
+            <span className="muted">0 = {a.minLabel || 'mínimo'}</span>
+            <span className="muted">10 = {a.maxLabel || 'máximo'}</span>
+          </div>
+        ) : null}
+      </div>
+      <div className="phone-sticky">
+        {err ? <div className="alert" role="alert" style={{ marginBottom: 10 }}>{err}</div> : null}
+        <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || picked == null}>{busy ? 'Enviando…' : picked == null ? 'Escolha uma nota' : `Enviar nota ${picked}`}</button>
+      </div>
+    </div>
+  );
+}
+
+// Avaliação final: estrelas + comentário opcional.
+function RatingPhone({ pin, a, token }) {
+  const key = `rg:${pin}:${a.id}:voted`;
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState('');
+  const [done, setDone] = useState(() => !!store.get(key));
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const labels = ['', 'Fraco', 'Regular', 'Bom', 'Muito bom', 'Excelente'];
+  const send = async () => {
+    if (!stars) return;
+    setBusy(true); setErr('');
+    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, stars, comment } });
+    setBusy(false);
+    if (!r.ok && !/já avaliou/.test(r.error || '')) { setErr(r.error); return; }
+    store.set(key, String(stars));
+    setDone(true);
+  };
+  if (done) return <Center icon={IconCheck} title="Obrigado pela avaliação!" text="Sua opinião ajuda a deixar os próximos encontros ainda melhores." />;
+  return (
+    <div className="phone-body">
+      <Header kind="Avaliação" question={a.question} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+        <div className="row" style={{ justifyContent: 'center', gap: 6, flexWrap: 'nowrap' }} role="radiogroup" aria-label="Nota de 1 a 5 estrelas">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} role="radio" aria-checked={stars === n} aria-label={`${n} ${n === 1 ? 'estrela' : 'estrelas'}`} onClick={() => setStars(n)}
+              style={{ width: 58, height: 58, border: 0, background: 'transparent', fontSize: 46, lineHeight: 1, cursor: 'pointer', color: n <= stars ? '#F2B636' : '#D3DCE4', transition: 'transform .15s', transform: n === stars ? 'scale(1.12)' : 'none' }}>★</button>
+          ))}
+        </div>
+        <p style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, minHeight: 24 }}>{labels[stars]}</p>
+        {a.comment !== false ? (
+          <div className="field">
+            <label htmlFor="rt-c" className="label" style={{ fontSize: 16 }}>Quer deixar um comentário? <span className="muted">(opcional)</span></label>
+            <textarea id="rt-c" className="textarea" style={{ fontSize: 17, minHeight: 90 }} maxLength={300} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="O que foi mais útil? O que podemos melhorar?" />
+            <span className="hint">Só o palestrante vê os comentários.</span>
+          </div>
+        ) : null}
+      </div>
+      <div className="phone-sticky">
+        {err ? <div className="alert" role="alert" style={{ marginBottom: 10 }}>{err}</div> : null}
+        <button className="btn btn-primary btn-lg btn-block" onClick={send} disabled={busy || !stars}>{busy ? 'Enviando…' : stars ? 'Enviar avaliação' : 'Toque nas estrelas'}</button>
+      </div>
+    </div>
+  );
+}
+
+// Cronômetro de dinâmica: o mesmo tempo do telão.
+function timerLeftMs(data, now) {
+  const run = data.run || {};
+  if (run.state === 'running' && run.endsAt) {
+    const offset = (data.serverNow || data._recv || now) - (data._recv || now);
+    return Math.max(0, run.endsAt - (now + offset));
+  }
+  return Math.max(0, run.left != null ? run.left : (data.activity && data.activity.seconds ? data.activity.seconds * 1000 : 0));
+}
+function fmtClock(ms) {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function TimerPhone({ a, data, reacts }) {
+  const now = useNow(250);
+  const left = timerLeftMs(data, now);
+  const run = data.run || {};
+  const over = left <= 0 && (run.state === 'running' || run.state === 'done');
+  return (
+    <>
+      <Center title={over ? 'Tempo!' : fmtClock(left)} text={a.label || 'Dinâmica em andamento'}>
+        <span className="hint">{over ? 'Olhe para o telão.' : run.state === 'running' ? 'O tempo está correndo' : run.state === 'paused' ? 'Cronômetro pausado' : 'O palestrante vai iniciar o cronômetro'}</span>
+      </Center>
+      {reacts}
+    </>
+  );
+}
+
+// Ranking geral do evento: posição e pontos de participação.
+function LeaderboardPhone({ pin, token, a }) {
+  const [me, setMe] = useState(null);
+  useEffect(() => {
+    let off = false;
+    const t = setTimeout(() => {
+      api(`/api/live/${pin}/score?token=${encodeURIComponent(token)}`).then((r) => { if (r.ok && !off) setMe(r); });
+    }, Math.random() * 1500);
+    return () => { off = true; clearTimeout(t); };
+  }, [pin, token, a.id]);
+  if (!me) return <Center icon={IconScreen} title={a.heading || 'Ranking do evento'} text="Calculando seus pontos…" />;
+  return (
+    <Center icon={<div className="circle-icon" style={{ fontSize: 48 }}>{me.position === 1 ? '🏆' : me.position <= 3 ? '🥇' : '⭐'}</div>} title={me.score ? `Você ficou em ${me.position}º lugar` : 'Obrigado por estar aqui!'} text={me.score ? `${me.score} pontos de participação no evento.` : 'Participe das próximas atividades para pontuar.'}>
+      {me.score && me.position > 1 && me.gap > 0 ? <span className="hint">Faltaram {me.gap} pontos para o {me.position - 1}º lugar.</span> : null}
+      <span className="hint" style={{ fontSize: 13 }}>10 pontos por resposta · 15 por pergunta ou frase · + pontos do quiz</span>
+    </Center>
+  );
+}
+
+// Quiz por equipes: escolher a equipe antes da pergunta.
+function TeamPicker({ pin, token, teams }) {
+  const key = `rg:${pin}:team`;
+  const [team, setTeam] = useState(() => store.get(key) || '');
+  const [err, setErr] = useState('');
+  const pick = async (t) => {
+    setErr('');
+    const r = await api(`/api/live/${pin}/team`, { method: 'POST', body: { token, team: t } });
+    if (!r.ok) { setErr(r.error); return; }
+    store.set(key, t);
+    setTeam(t);
+  };
+  return (
+    <div className="card stack" style={{ gap: 10, width: '100%', textAlign: 'left', marginTop: 8 }}>
+      <span className="label" style={{ fontSize: 16 }}>{team ? <>Sua equipe: <b>{team}</b></> : 'Qual é a sua equipe?'}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+        {teams.map((t) => (
+          <button key={t} onClick={() => pick(t)} aria-pressed={team === t} className={'opt-btn' + (team === t ? ' sel' : '')} style={{ minHeight: 48, justifyContent: 'center', textAlign: 'center', fontSize: 16 }}>{t}</button>
+        ))}
+      </div>
+      {team ? <span className="hint">Pode trocar até a pergunta começar.</span> : null}
+      {err ? <div className="alert" role="alert">{err}</div> : null}
     </div>
   );
 }

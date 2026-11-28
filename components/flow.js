@@ -11,6 +11,9 @@ export function nextStep(data) {
     if (run.phase === 'reveal') return { action: 'quizRank', label: 'Mostrar ranking' };
     if (run.phase === 'rank' && n < (a.qTotal || 0)) return { action: 'quizNext', label: `Ir para pergunta ${n + 1}` };
   }
+  if (a && a.kind === 'timer' && run.state !== 'running' && run.state !== 'done' && (run.left == null || run.left > 0)) {
+    return { action: 'timerStart', label: run.state === 'paused' ? 'Continuar cronômetro' : 'Iniciar cronômetro' };
+  }
   if (a && a.kind === 'raffle' && data.results && data.results.kind === 'raffle' && !(data.results.winners || []).length) return { action: 'raffleDraw', label: 'Sortear agora' };
   if (index < total - 1) return { action: 'next', label: 'Próxima atividade' };
   return { action: 'end', label: 'Encerrar evento', last: true };

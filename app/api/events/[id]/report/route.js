@@ -18,8 +18,9 @@ export async function GET(req, { params }) {
   const out = [];
   for (const a of acts) {
     const item = { id: a.id, kind: a.kind, title: a.title, config: a.config };
-    if (a.kind === 'cloud' || a.kind === 'choice') item.results = await activityResults(a, {});
-    if (a.kind === 'qa') {
+    if (['cloud', 'choice', 'scale', 'leaderboard'].includes(a.kind)) item.results = await activityResults(a, {});
+    if (a.kind === 'rating') item.results = await activityResults(a, {}, { all: true });
+    if (a.kind === 'qa' || a.kind === 'wall') {
       const r = await activityResults(a, {});
       item.questions = r.questions.filter((q) => q.status !== 'pending').sort((x, y) => y.likes - x.likes).slice(0, 30);
     }
@@ -31,6 +32,7 @@ export async function GET(req, { params }) {
         const r = await activityResults(a, {}, { qIndex: i, all: true, rankLimit: 10 });
         item.questions.push({ ...qs[i], counts: r.counts, answered: r.answered });
         item.ranking = r.ranking;
+        item.teams = r.teams;
       }
     }
     out.push(item);

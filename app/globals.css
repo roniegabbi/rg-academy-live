@@ -221,3 +221,5 @@ p { margin: 0; }
 .opt-btn.sel .opt-box.round { background: #fff; }
 .opt-box .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green-text); display: block; }
 .phone-sticky { position: sticky; bottom: 0; margin: 0 -20px -20px; padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 18px); z-index: 4; }
+@keyframes timerFlash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.timer-flash { animation: timerFlash 1s ease-in-out 4; }
