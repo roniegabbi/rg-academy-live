@@ -9,7 +9,9 @@ export async function GET(req, { params }) {
   const o = await ownedEvent(req, id);
   if (!o.event) return error('Evento não encontrado', o.status);
   const sql = db();
-  const acts = await sql`SELECT id, position, kind, title, config FROM activities WHERE event_id = ${id} ORDER BY position, created_at`;
+  const acts = await sql`SELECT a.id, a.position, a.kind, a.title, a.config,
+      ((SELECT count(*) FROM responses r WHERE r.activity_id = a.id) + (SELECT count(*) FROM questions q WHERE q.activity_id = a.id))::int AS answers
+    FROM activities a WHERE a.event_id = ${id} ORDER BY a.position, a.created_at`;
   const p = await sql`SELECT count(*)::int AS n FROM participants WHERE event_id = ${id}`;
   return json({ ok: true, event: o.event, activities: acts, participants: p[0].n });
 }

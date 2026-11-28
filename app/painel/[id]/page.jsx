@@ -93,6 +93,17 @@ export default function Editor() {
     const r = await api(`/api/activities/${current.id}`, { method: 'POST' });
     if (r.ok) await load(r.id);
   };
+  // Zera a atividade (mantém a configuração): apaga respostas, perguntas e sorteados.
+  const reset = async () => {
+    const n = current.answers || 0;
+    const what = current.kind === 'raffle' ? 'os sorteados' : current.kind === 'qa' ? 'as perguntas do público' : n === 1 ? 'a resposta' : `as ${n} respostas`;
+    if (!window.confirm(`Zerar "${current.title}"? Vamos apagar ${what} e ela recomeça do zero. A pergunta e as opções continuam como estão.`)) return;
+    const r = await api(`/api/activities/${current.id}/responses`, { method: 'DELETE' });
+    if (!r.ok) { setErr(r.error); return; }
+    await load(current.id);
+    setMsg('Atividade zerada. Pronta para recomeçar.');
+    setTimeout(() => setMsg(''), 2500);
+  };
   const del = async () => {
     if (!window.confirm(`Excluir "${current.title}"? As respostas dela também serão apagadas.`)) return;
     await api(`/api/events/${id}/activities`, { method: 'DELETE', body: { ids: [current.id] } });
@@ -260,6 +271,11 @@ export default function Editor() {
                   <div className="row" style={{ gap: 6 }}>
                     <button className="btn btn-sm icon-btn" onClick={() => move(-1)} aria-label="Mover para cima">↑</button>
                     <button className="btn btn-sm icon-btn" onClick={() => move(1)} aria-label="Mover para baixo">↓</button>
+                    {current.kind !== 'slide' ? (
+                      <button className="btn btn-sm" onClick={reset} disabled={!current.answers} title={current.answers ? 'Apaga as respostas e recomeça, sem excluir a atividade' : 'Ainda não há respostas'}>
+                        Zerar respostas{current.answers ? ` (${current.answers})` : ''}
+                      </button>
+                    ) : null}
                     <button className="btn btn-sm" onClick={dup}>Duplicar</button>
                     <button className="btn btn-sm btn-danger" onClick={del}>Excluir</button>
                   </div>
