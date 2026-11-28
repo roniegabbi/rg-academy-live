@@ -96,8 +96,13 @@ export default function Editor() {
 
   const add = async (kind) => {
     if (dirty && !window.confirm('Há alterações não salvas. Descartar?')) return;
-    const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { kind, after: sel } });
-    if (r.ok) await load(r.activities[0].id);
+    // Atividade nova entra sempre no final da lista (depois é só arrastar, se quiser).
+    const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { kind } });
+    if (r.ok) {
+      await load(r.activities[0].id);
+      setMsg(`Atividade adicionada no final da lista (item ${acts.length + 1}).`);
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
   const dup = async () => {
     const r = await api(`/api/activities/${current.id}`, { method: 'POST' });
@@ -186,7 +191,7 @@ export default function Editor() {
         const url = await uploadImage(blobs[i]);
         items.push({ kind: 'slide', title: `${file.name.replace(/\.pdf$/i, '')} · pág. ${i + 1}`, config: { mode: 'image', imageUrl: url, heading: '' } });
       }
-      const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { items, after: sel } });
+      const r = await api(`/api/events/${id}/activities`, { method: 'POST', body: { items } });
       if (!r.ok) throw new Error(r.error);
       setMsg(`${items.length} páginas importadas como slides.`);
       await load(r.activities[0].id);
@@ -273,7 +278,7 @@ export default function Editor() {
             />
             {!acts.length ? <p className="muted">Nenhuma atividade. Adicione abaixo.</p> : null}
             <span className="eyebrow" style={{ marginTop: 10 }}>Adicionar atividade</span>
-            {current && acts.length > 1 ? <span className="hint" style={{ marginTop: -4 }}>Entra logo depois de “{current.title.length > 40 ? current.title.slice(0, 40) + '…' : current.title}” (item {acts.findIndex((a) => a.id === sel) + 1}).</span> : null}
+            {acts.length ? <span className="hint" style={{ marginTop: -4 }}>Entra no final da lista. Depois, arraste se quiser mudar de lugar.</span> : null}
             <div className="add-grid">
               {ADD.map((x) => (
                 <button key={x.kind} className="add-btn" onClick={() => add(x.kind)}><b>+ {x.label}</b><span>{x.desc}</span></button>
