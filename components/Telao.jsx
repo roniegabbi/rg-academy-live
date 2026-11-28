@@ -643,10 +643,10 @@ function WallScreen({ a, results, foot }) {
       <Backdrop />
       <Question eyebrow="Mural da turma" text={a.question} pill={<Pill><strong style={{ color: '#fff' }}>{posts.length}</strong> {posts.length === 1 ? 'frase' : 'frases'}</Pill>} />
       {posts.length ? (
-        <div style={{ position: 'absolute', left: 48, right: 48, top: 220, bottom: 100, display: 'grid', gridTemplateColumns: `repeat(${big ? 2 : 3}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: 16 }}>
+        <div style={{ position: 'absolute', left: 48, right: 48, top: 220, bottom: 100, display: 'grid', gridTemplateColumns: `repeat(${posts.length === 1 ? 1 : big ? 2 : 3}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: 16, alignContent: 'center', ...(posts.length <= 2 ? { top: 260, bottom: 150 } : {}) }}>
           {posts.map((p, i) => (
-            <div key={p.id} className="stage-in" style={{ padding: big ? '22px 26px' : '16px 20px', borderRadius: 20, background: i % 3 === 0 ? 'rgba(69,176,43,0.16)' : 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10, overflow: 'hidden' }}>
-              <span style={{ fontSize: big ? 30 : p.text.length > 80 ? 19 : 23, fontWeight: 600, lineHeight: 1.25 }}>“{p.text}”</span>
+            <div key={p.id} className="stage-in" style={{ padding: big ? '26px 30px' : '16px 20px', borderRadius: 20, background: i % 3 === 0 ? 'rgba(69,176,43,0.16)' : 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10, overflow: 'hidden' }}>
+              <span style={{ flex: 1, display: 'flex', alignItems: 'center', fontSize: big ? (posts.length <= 2 ? 40 : 32) : p.text.length > 80 ? 19 : 23, fontWeight: 600, lineHeight: 1.2 }}>“{p.text}”</span>
               <span style={{ fontSize: big ? 18 : 15, color: '#9FB3C6', display: 'flex', justifyContent: 'space-between' }}><span>{p.author || 'Anônimo'}</span>{p.likes ? <span>👍 {p.likes}</span> : null}</span>
             </div>
           ))}
@@ -850,7 +850,7 @@ export default function Telao({ data, joinUrl, full = false }) {
     else if (a.mode === 'image') screen = <ImageSlide a={a} />;
     else if (a.mode === 'youtube') screen = <VideoSlide a={a} />;
     else screen = <TextSlide a={a} />;
-    if (a.linkUrl) screen = <>{screen}<div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center' }}><span style={{ padding: '10px 20px', borderRadius: 999, background: 'rgba(8,26,44,0.82)', border: '1px solid rgba(127,211,95,0.5)', color: '#fff', fontSize: 20, fontWeight: 600 }}>📱 {a.linkLabel || 'Link'} disponível no seu celular</span></div></>;
+    if (a.linkUrl) screen = <>{screen}<div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center' }}><span style={{ padding: '10px 20px', borderRadius: 999, background: 'rgba(8,26,44,0.82)', border: '1px solid rgba(127,211,95,0.5)', color: '#fff', fontSize: 20, fontWeight: 600 }}>📱 No seu celular: <strong style={{ color: '#7FD35F' }}>{a.linkLabel || 'Abrir link'}</strong></span></div></>;
   } else if (a.kind === 'cloud') {
     key = a.id;
     screen = <CloudScreen results={results} />;
