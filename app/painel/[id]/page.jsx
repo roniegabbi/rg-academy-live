@@ -518,6 +518,7 @@ function QuizForm({ c, upd }) {
 function QaForm({ c, upd }) {
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <AiSuggest kind="qa" label="Sugerir chamada com IA" onPick={(it) => upd({ question: it.question })} />
       <div className="field"><label htmlFor="qa-q">Chamada para o público</label><input id="qa-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Cada pessoa pode enviar até 3 perguntas e curtir as dos colegas. As mais curtidas sobem no telão.</span></div>
       <label className="check"><input type="checkbox" checked={c.moderate !== false} onChange={(e) => upd({ moderate: e.target.checked })} />Aprovar as perguntas antes de aparecerem (recomendado)</label>
       <p className="hint">Durante o evento, no painel de controle, você aprova, destaca uma pergunta em tela cheia no telão e marca como respondida.</p>
@@ -539,6 +540,7 @@ function RaffleForm({ c, upd }) {
 function ScaleForm({ c, upd }) {
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <AiSuggest kind="scale" label="Sugerir escala com IA" onPick={(it) => upd({ question: it.question, minLabel: it.minLabel, maxLabel: it.maxLabel })} />
       <div className="field"><label htmlFor="sc-q">Pergunta</label><input id="sc-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Ex.: “De 0 a 10, quanto sua equipe confia nas suas decisões?”</span></div>
       <div className="row" style={{ gap: 10 }}>
         <div className="field" style={{ flex: 1 }}><label htmlFor="sc-min">O que significa 0</label><input id="sc-min" className="input" maxLength={30} value={c.minLabel || ''} onChange={(e) => upd({ minLabel: e.target.value })} placeholder="Nada" /></div>
@@ -552,6 +554,7 @@ function ScaleForm({ c, upd }) {
 function WallForm({ c, upd }) {
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <AiSuggest kind="wall" label="Sugerir pergunta para o mural com IA" onPick={(it) => upd({ question: it.question })} />
       <div className="field"><label htmlFor="wl-q">Pergunta para o mural</label><input id="wl-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /><span className="hint">Cada pessoa escreve até 3 frases curtas (120 caracteres). No telão elas aparecem como cartões; os colegas podem curtir.</span></div>
       <label className="check"><input type="checkbox" checked={c.moderate !== false} onChange={(e) => upd({ moderate: e.target.checked })} />Aprovar as frases antes de aparecerem no telão (recomendado)</label>
       <p className="hint">No painel de controle você aprova, oculta ou destaca uma frase em tela cheia.</p>
@@ -562,6 +565,7 @@ function WallForm({ c, upd }) {
 function RatingForm({ c, upd }) {
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <AiSuggest kind="rating" label="Sugerir pergunta de avaliação com IA" onPick={(it) => upd({ question: it.question })} />
       <div className="field"><label htmlFor="rt-q">Pergunta</label><input id="rt-q" className="input" value={c.question || ''} maxLength={140} onChange={(e) => upd({ question: e.target.value })} /></div>
       <label className="check"><input type="checkbox" checked={c.comment !== false} onChange={(e) => upd({ comment: e.target.checked })} />Pedir um comentário (opcional para o público)</label>
       <p className="hint">O telão mostra a média e as estrelas. Os comentários não aparecem no telão: vão só para o relatório em PDF e a planilha.</p>
@@ -573,6 +577,7 @@ function TimerForm({ c, upd }) {
   const secs = Number(c.seconds) || 180;
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <AiSuggest kind="timer" label="Sugerir dinâmica com IA" onPick={(it) => upd({ label: it.label, seconds: it.seconds })} />
       <div className="field"><label htmlFor="tm-l">Instrução da dinâmica</label><input id="tm-l" className="input" value={c.label || ''} maxLength={120} onChange={(e) => upd({ label: e.target.value })} placeholder="Ex.: Converse com quem está ao seu lado" /></div>
       <div className="field">
         <span className="label">Tempo</span>
@@ -595,4 +600,11 @@ function LeaderboardForm({ c, upd }) {
       <p className="hint">Pontos de participação no evento todo: 10 por resposta (palavra, voto, escala, avaliação, resposta de quiz), 15 por pergunta ou frase no mural, mais os pontos do quiz. O telão mostra o pódio; cada celular mostra a posição da pessoa. Coloque perto do fim do evento.</p>
     </div>
   );
+}
+
+// Botão "✨ … com IA" que abre o painel de sugestões e aplica a escolhida no formulário.
+function AiSuggest({ kind, label, onPick }) {
+  const [open, setOpen] = useState(false);
+  if (open) return <AiPanel kind={kind} onPick={onPick} onClose={() => setOpen(false)} />;
+  return <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setOpen(true)}>✨ {label}</button>;
 }

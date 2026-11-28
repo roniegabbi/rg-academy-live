@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { api, letters } from './client';
 
 // Painel "Criar com IA" do editor. O resultado sempre volta para revisão antes de salvar.
-export default function AiPanel({ kind, onQuiz, onPoll, onCloud, onClose }) {
+const ITEM_KINDS = ['scale', 'wall', 'qa', 'rating', 'timer'];
+const TITLES = { quiz: 'Criar quiz com IA', choice: 'Sugerir enquete com IA', cloud: 'Sugerir pergunta com IA', scale: 'Sugerir escala com IA', wall: 'Sugerir pergunta para o mural', qa: 'Sugerir chamada com IA', rating: 'Sugerir pergunta de avaliação', timer: 'Sugerir dinâmica com IA' };
+const PLACEHOLDERS = { rating: 'Ex.: Aula sobre credibilidade do líder (opcional: o que você quer avaliar)', timer: 'Ex.: Credibilidade e coerência do líder no dia a dia' };
+
+export default function AiPanel({ kind, onQuiz, onPoll, onCloud, onPick, onClose }) {
   const [topic, setTopic] = useState('');
   const [context, setContext] = useState('');
   const [showContext, setShowContext] = useState(false);
@@ -24,10 +28,10 @@ export default function AiPanel({ kind, onQuiz, onPoll, onCloud, onClose }) {
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     if (kind === 'quiz') { onQuiz(r.questions, mode); onClose(); return; }
-    setSuggestions(kind === 'choice' ? r.polls : r.questions);
+    setSuggestions(kind === 'choice' ? r.polls : ITEM_KINDS.includes(kind) ? r.items : r.questions);
   };
 
-  const title = kind === 'quiz' ? 'Criar quiz com IA' : kind === 'choice' ? 'Sugerir enquete com IA' : 'Sugerir pergunta com IA';
+  const title = TITLES[kind] || 'Sugerir com IA';
   return (
     <div className="qbox" style={{ background: '#F3FAF0', borderColor: '#BFE3B2' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -36,7 +40,7 @@ export default function AiPanel({ kind, onQuiz, onPoll, onCloud, onClose }) {
       </div>
       <div className="field">
         <label htmlFor="ai-topic">Tema</label>
-        <textarea id="ai-topic" className="textarea" style={{ minHeight: 70 }} maxLength={400} placeholder="Ex.: Liderança situacional para gestores de primeira viagem" value={topic} onChange={(e) => setTopic(e.target.value)} />
+        <textarea id="ai-topic" className="textarea" style={{ minHeight: 70 }} maxLength={400} placeholder={PLACEHOLDERS[kind] || 'Ex.: Liderança situacional para gestores de primeira viagem'} value={topic} onChange={(e) => setTopic(e.target.value)} />
       </div>
       {kind === 'quiz' ? (
         <div className="row" style={{ gap: 12 }}>
@@ -76,6 +80,22 @@ export default function AiPanel({ kind, onQuiz, onPoll, onCloud, onClose }) {
               <span className="hint">{p.options.map((o, k) => `${letters(k)}. ${o}`).join(' · ')}</span>
               <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => { onPoll(p); onClose(); }}>Usar esta</button>
             </div>
+          ))}
+        </div>
+      ) : null}
+      {suggestions && ITEM_KINDS.includes(kind) ? (
+        <div className="stack" style={{ gap: 8 }}>
+          {suggestions.map((it, i) => (
+            <button key={i} className="act-item" style={{ border: '1px solid var(--line)' }} onClick={() => { onPick(it); onClose(); }}>
+              <span className="act-meta">
+                <span className="t" style={{ whiteSpace: 'normal' }}>{it.question || it.label}</span>
+                <span className="k">
+                  {kind === 'scale' && (it.minLabel || it.maxLabel) ? `0 = ${it.minLabel || '—'} · 10 = ${it.maxLabel || '—'} · ` : ''}
+                  {kind === 'timer' ? `${Math.round(it.seconds / 6) / 10} min · `.replace('.', ',') : ''}
+                  Toque para usar
+                </span>
+              </span>
+            </button>
           ))}
         </div>
       ) : null}

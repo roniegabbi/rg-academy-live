@@ -28,6 +28,29 @@ function userPrompt(kind, p) {
       'Regras: pergunta com no máximo 120 caracteres; de 4 a 5 opções curtas (máximo 50 caracteres) e mutuamente exclusivas.\n' +
       'Formato: {"polls":[{"question":"...","options":["...","...","...","..."]}]}';
   }
+  const n = p.count || 4;
+  if (kind === 'scale') {
+    return base + `\nSugira ${n} perguntas de autoavaliação para uma escala de 0 a 10 respondida pelo público no celular, que gerem reflexão e debate.\n` +
+      'Regras: comece com "De 0 a 10," e tenha no máximo 120 caracteres; diga o que significa 0 e o que significa 10 (máximo 25 caracteres cada).\n' +
+      'Formato: {"items":[{"question":"De 0 a 10, ...","minLabel":"...","maxLabel":"..."}]}';
+  }
+  if (kind === 'wall') {
+    return base + `\nSugira ${n} perguntas para um mural ao vivo, em que cada pessoa responde com UMA frase curta (até 120 caracteres) que aparece num cartão no telão.\n` +
+      'Regras: perguntas abertas, inspiradoras e práticas, com no máximo 110 caracteres; prefira começar com "Em uma frase: ...".\nFormato: {"items":[{"question":"..."}]}';
+  }
+  if (kind === 'qa') {
+    return base + `\nSugira ${n} chamadas curtas para convidar o público a enviar perguntas ao palestrante pelo celular.\n` +
+      'Regras: tom acolhedor, máximo 90 caracteres, ligadas ao tema.\nFormato: {"items":[{"question":"..."}]}';
+  }
+  if (kind === 'rating') {
+    return base + `\nSugira ${n} perguntas para o público avaliar o encontro com estrelas de 1 a 5 no fim do evento.\n` +
+      'Regras: claras, máximo 90 caracteres, que possam ser respondidas com uma nota de 1 a 5.\nFormato: {"items":[{"question":"..."}]}';
+  }
+  if (kind === 'timer') {
+    return base + `\nSugira ${n} dinâmicas rápidas em duplas ou pequenos grupos, para fazer durante a palestra com um cronômetro no telão.\n` +
+      'Regras: a instrução tem no máximo 110 caracteres, é direta e começa com um verbo (ex.: "Converse com quem está ao seu lado: ..."); ' +
+      'sugira a duração em segundos entre 60 e 600, adequada à dinâmica.\nFormato: {"items":[{"label":"...","seconds":180}]}';
+  }
   return base + `\nSugira ${p.count || 4} perguntas para um mapa de palavras ao vivo, que o público responde com UMA palavra.\n` +
     'Regras: máximo 100 caracteres; comece pedindo uma palavra (ex.: "Em uma palavra: ...").\nFormato: {"questions":["...","..."]}';
 }
@@ -46,7 +69,7 @@ export async function POST(req) {
   if (!uid) return error('Não autenticado', 401);
   if (!process.env.ANTHROPIC_API_KEY) return error('A IA ainda não está configurada (falta a chave ANTHROPIC_API_KEY na Vercel).', 503);
   const body = await readJson(req);
-  const kind = ['quiz', 'choice', 'cloud'].includes(body.kind) ? body.kind : 'quiz';
+  const kind = ['quiz', 'choice', 'cloud', 'scale', 'wall', 'qa', 'rating', 'timer'].includes(body.kind) ? body.kind : 'quiz';
   const p = {
     topic: String(body.topic || '').trim().slice(0, 400),
     context: String(body.context || '').trim().slice(0, 12000),
@@ -92,6 +115,11 @@ export async function POST(req) {
   if (kind === 'choice') {
     const polls = (out.polls || []).map((x) => cleanConfig('choice', { question: x.question, options: x.options })).filter((x) => x.question && x.options.length >= 2);
     return json({ ok: true, polls });
+  }
+  if (['scale', 'wall', 'qa', 'rating', 'timer'].includes(kind)) {
+    const items = (out.items || []).map((x) => cleanConfig(kind, x || {})).filter((x) => (x.question || x.label || '').trim());
+    if (!items.length) return error('A IA não gerou sugestões válidas. Tente detalhar o tema.', 502);
+    return json({ ok: true, items });
   }
   const questions = (out.questions || []).map((q) => String(q).slice(0, 140)).filter(Boolean);
   return json({ ok: true, questions });
