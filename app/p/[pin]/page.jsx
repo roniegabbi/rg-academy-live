@@ -11,6 +11,36 @@ const store = {
 };
 
 // Celular do participante: uma pergunta por tela, letras grandes, um botão principal.
+// Nova entrada no evento: guarda o token e apaga marcas antigas deste evento neste celular
+// ("já votei", "já respondi"…), que eram da entrada anterior.
+function adoptToken(pin, token) {
+  try {
+    const prefix = `rg:${pin}:`;
+    const old = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(prefix) && k !== `${prefix}token`) old.push(k);
+    }
+    if (store.get(`${prefix}token`) && store.get(`${prefix}token`) !== token) old.forEach((k) => window.localStorage.removeItem(k));
+  } catch { /* ok */ }
+  store.set(`rg:${pin}:token`, token);
+  try { window.dispatchEvent(new CustomEvent('rg-token', { detail: { pin, token } })); } catch { /* ok */ }
+}
+
+// Envia uma ação do participante. Se o servidor não reconhece mais a entrada
+// (ex.: o palestrante zerou o evento), entra de novo com o mesmo nome e reenvia.
+async function liveApi(pin, path, opts) {
+  const body = opts.body || {};
+  let r = await api(`/api/live/${pin}/${path}`, { method: 'POST', body });
+  if (!r.ok && r.status === 401) {
+    const j = await api(`/api/live/${pin}/join`, { method: 'POST', body: { name: store.get('rg:name') || '' } });
+    if (!j.ok || !j.token) return { ok: false, error: j.error || 'Sua entrada expirou. Recarregue a página.' };
+    adoptToken(pin, j.token);
+    r = await api(`/api/live/${pin}/${path}`, { method: 'POST', body: { ...body, token: j.token } });
+  }
+  return r;
+}
+
 export default function Participante() {
   const { pin } = useParams();
   const { data, offline, notFound } = usePoll(`/api/live/${pin}`, 1500);
@@ -22,15 +52,24 @@ export default function Participante() {
     const t = store.get(`rg:${pin}:token`);
     setToken(t);
     setName(store.get('rg:name') || '');
-    if (t) store.set('rg:last', pin);
+    if (t) {
+      store.set('rg:last', pin);
+      // Confere se a entrada ainda vale (o evento pode ter sido zerado). Se não valer, entra de novo com o mesmo nome.
+      api(`/api/live/${pin}/join`, { method: 'POST', body: { token: t, name: store.get('rg:name') || '' } }).then((r) => {
+        if (r.ok && r.token && r.token !== t) adoptToken(pin, r.token);
+      });
+    }
     setReady(true);
+    const onToken = (e) => { if (e.detail && e.detail.pin === pin) setToken(e.detail.token); };
+    window.addEventListener('rg-token', onToken);
+    return () => window.removeEventListener('rg-token', onToken);
   }, [pin]);
 
   if (notFound) return <Shell><Center title="Evento não encontrado" text="Confira o PIN ou aponte a câmera de novo para o QR code do telão." /></Shell>;
   if (!data || !ready) return <Shell><Center title="Conectando…" /></Shell>;
 
   const ev = data.event;
-  if (!token) return <Shell event={ev} offline={offline}><Join pin={pin} ev={ev} name={name} setName={setName} onJoin={(t) => { store.set(`rg:${pin}:token`, t); store.set('rg:last', pin); setToken(t); }} /></Shell>;
+  if (!token) return <Shell event={ev} offline={offline}><Join pin={pin} ev={ev} name={name} setName={setName} onJoin={(t) => { adoptToken(pin, t); store.set('rg:last', pin); setToken(t); }} /></Shell>;
 
   return (
     <Shell event={ev} offline={offline}>
@@ -150,7 +189,7 @@ function ReactionBar({ pin, token }) {
     setPops((p) => [...p, { id, em }]);
     setTimeout(() => setPops((p) => p.filter((x) => x.id !== id)), 1200);
     try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* ok */ }
-    await api(`/api/live/${pin}/react`, { method: 'POST', body: { token, emoji: em } });
+    await liveApi(pin, 'react', { body: { token, emoji: em } });
   };
   return (
     <div className="phone-foot" style={{ position: 'relative' }}>
@@ -232,7 +271,7 @@ function CloudPhone({ pin, a, token, index, total }) {
     if (!word.trim()) return;
     setBusy(true);
     setErr('');
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, text: word } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, text: word } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); if (r.status === 409 && /já enviou/.test(r.error) && /palavras/.test(r.error)) { store.set(key, MAX); setSent(MAX); setShowForm(false); } return; }
     if (r.emoji) { const n = esent + 1; store.set(ekey, n); setEsent(n); setWord(''); setFlash(`${r.word} enviado!`); setTimeout(() => setFlash(''), 1800); return; }
@@ -248,7 +287,7 @@ function CloudPhone({ pin, a, token, index, total }) {
     if (busy || esent >= EMAX) return;
     setBusy(true);
     setErr('');
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, text: em } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, text: em } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); if (r.status === 409) { store.set(ekey, EMAX); setEsent(EMAX); } return; }
     const n = esent + 1;
@@ -325,7 +364,7 @@ function ChoicePhone({ pin, a, token, index, total, results, reacts }) {
   const send = async () => {
     setBusy(true);
     setErr('');
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, options: picked } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, options: picked } });
     setBusy(false);
     if (!r.ok && !(r.status === 409 && /já votou/.test(r.error))) { setErr(r.error); return; }
     store.set(key, '1');
@@ -376,6 +415,7 @@ function RankingName({ pin, token, label = 'Como você quer aparecer no ranking?
     if (name.trim().length < 2) return;
     const r = await api(`/api/live/${pin}/join`, { method: 'POST', body: { token, name } });
     if (!r.ok) { setErr(r.error); return; }
+    if (r.token && r.token !== token) adoptToken(pin, r.token);
     store.set('rg:name', name.trim());
     setSaved(true);
   };
@@ -415,7 +455,7 @@ function QuizPhone({ pin, data, token }) {
     if (answer !== null) return;
     setAnswer(i);
     store.set(key, String(i));
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, qIndex: a.qIndex, option: i } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, qIndex: a.qIndex, option: i } });
     if (!r.ok && !/já respondeu/.test(r.error || '')) { setErr(r.error); setAnswer(null); store.set(key, ''); }
   };
 
@@ -508,7 +548,7 @@ function QaPhone({ pin, a, token, data }) {
     e.preventDefault();
     if (text.trim().length < minLen) return;
     setBusy(true); setErr('');
-    const r = await api(`/api/live/${pin}/ask`, { method: 'POST', body: { token, activityId: a.id, text, anonymous: anon } });
+    const r = await liveApi(pin, 'ask', { body: { token, activityId: a.id, text, anonymous: anon } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     const next = [...mine, { id: r.id, text: text.trim() }];
@@ -523,7 +563,7 @@ function QaPhone({ pin, a, token, data }) {
     const next = [...liked, q.id];
     setLiked(next); store.set(likeKey, JSON.stringify(next));
     try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* ok */ }
-    await api(`/api/live/${pin}/like`, { method: 'POST', body: { token, questionId: q.id } });
+    await liveApi(pin, 'like', { body: { token, questionId: q.id } });
   };
 
   return (
@@ -663,7 +703,7 @@ function ScalePhone({ pin, a, token, results, reacts }) {
   const send = async () => {
     if (picked == null) return;
     setBusy(true); setErr('');
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, value: picked } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, value: picked } });
     setBusy(false);
     if (!r.ok && !/já respondeu/.test(r.error || '')) { setErr(r.error); return; }
     store.set(key, String(picked));
@@ -726,7 +766,7 @@ function RatingPhone({ pin, a, token }) {
   const send = async () => {
     if (!stars) return;
     setBusy(true); setErr('');
-    const r = await api(`/api/live/${pin}/respond`, { method: 'POST', body: { token, activityId: a.id, stars, comment } });
+    const r = await liveApi(pin, 'respond', { body: { token, activityId: a.id, stars, comment } });
     setBusy(false);
     if (!r.ok && !/já avaliou/.test(r.error || '')) { setErr(r.error); return; }
     store.set(key, String(stars));
@@ -814,7 +854,7 @@ function TeamPicker({ pin, token, teams }) {
   const [err, setErr] = useState('');
   const pick = async (t) => {
     setErr('');
-    const r = await api(`/api/live/${pin}/team`, { method: 'POST', body: { token, team: t } });
+    const r = await liveApi(pin, 'team', { body: { token, team: t } });
     if (!r.ok) { setErr(r.error); return; }
     store.set(key, t);
     setTeam(t);
