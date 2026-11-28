@@ -379,14 +379,20 @@ function QuizPhone({ pin, data, token }) {
   const key = `rg:${pin}:${a.id}:q${a.qIndex}`;
   const [answer, setAnswer] = useState(() => { const v = store.get(key); return v === null ? null : Number(v); });
   const [err, setErr] = useState('');
-  const [me, setMe] = useState(null);
+  const [meAll, setMe] = useState(null);
   const phase = run.phase;
   const revealed = phase === 'reveal' || phase === 'rank';
 
+  // Uma consulta por pergunta (os pontos não mudam entre "revelar" e "ranking"),
+  // espalhada em até ~1s para 500 celulares não perguntarem no mesmo instante.
   useEffect(() => {
     if (!revealed) return;
-    api(`/api/live/${pin}/me?token=${encodeURIComponent(token)}&activity=${a.id}&q=${a.qIndex}`).then((r) => { if (r.ok) setMe(r); });
-  }, [revealed, phase, pin, token, a.id, a.qIndex]);
+    let off = false;
+    const t = setTimeout(() => {
+      api(`/api/live/${pin}/me?token=${encodeURIComponent(token)}&activity=${a.id}&q=${a.qIndex}`).then((r) => { if (r.ok && !off) setMe({ ...r, _q: a.qIndex }); });
+    }, Math.random() * 1000);
+    return () => { off = true; clearTimeout(t); };
+  }, [revealed, pin, token, a.id, a.qIndex]);
 
   const pick = async (i) => {
     if (answer !== null) return;
@@ -397,6 +403,7 @@ function QuizPhone({ pin, data, token }) {
   };
 
   if (revealed) {
+    const me = meAll && meAll._q === a.qIndex ? meAll : null;
     const answered = me ? me.answered : answer !== null;
     const right = me ? me.correct : answer === a.correct;
     const bg = !answered ? '#EEF2F5' : right ? '#45B02B' : '#FDECEC';
