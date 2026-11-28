@@ -58,8 +58,14 @@ export async function POST(req, { params }) {
       paused = false;
       break;
     }
-    case 'quizReveal': run = { ...run, phase: 'reveal' }; break;
-    case 'quizRank': run = { ...run, phase: 'rank' }; break;
+    case 'quizReveal':
+      if (!['question', 'closed', 'reveal', 'rank'].includes(run.phase)) return error('Inicie a pergunta antes de revelar a resposta.');
+      run = { ...run, phase: 'reveal' };
+      break;
+    case 'quizRank':
+      if (!['question', 'closed', 'reveal', 'rank'].includes(run.phase)) return error('Inicie a pergunta antes de mostrar o ranking.');
+      run = { ...run, phase: 'rank' };
+      break;
     case 'quizNext': {
       const act = acts[index];
       const total = quizQuestions(act).length;
@@ -143,6 +149,13 @@ export async function POST(req, { params }) {
       break;
     default:
       return error('Ação desconhecida.');
+  }
+
+  // Voltou para um quiz que já tinha respostas (ex.: apertou ← sem querer)?
+  // Retoma da última pergunta respondida, mostrando o ranking, em vez de recomeçar da 1.
+  if (['goto', 'next', 'prev', 'start'].includes(action) && acts[index] && acts[index].kind === 'quiz') {
+    const last = await sql`SELECT max(q_index)::int AS m FROM responses WHERE activity_id = ${acts[index].id}`;
+    if (last[0].m != null) run = { qIndex: Math.min(last[0].m, Math.max(0, quizQuestions(acts[index]).length - 1)), phase: 'rank' };
   }
 
   const rows = await sql`UPDATE events SET current_index = ${index}, paused = ${paused}, run = ${JSON.stringify(run)}::jsonb, updated_at = now() WHERE id = ${id} RETURNING *`;
