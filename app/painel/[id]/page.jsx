@@ -44,6 +44,7 @@ export default function Editor() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
+  const [participants, setParticipants] = useState(0);
   const pdfRef = useRef(null);
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState([]);
@@ -53,6 +54,7 @@ export default function Editor() {
     if (!r.ok) { setErr(r.error); return; }
     setEv(r.event);
     setActs(r.activities);
+    setParticipants(r.participants || 0);
     const pick = r.activities.find((a) => a.id === keepSel) || r.activities[0] || null;
     if (pick) { setSel(pick.id); setDraft(JSON.parse(JSON.stringify(pick.config || {}))); setDirty(false); }
   };
@@ -92,6 +94,20 @@ export default function Editor() {
   const dup = async () => {
     const r = await api(`/api/activities/${current.id}`, { method: 'POST' });
     if (r.ok) await load(r.id);
+  };
+  // Zerar geral: apaga participantes e respostas de todas as atividades e volta o evento ao início.
+  const totalAnswers = acts.reduce((s, a) => s + (a.answers || 0), 0);
+  const resetAll = async () => {
+    const live = ev && ev.status === 'live';
+    const msg = `Zerar o evento inteiro?\n\nVamos apagar ${participants} ${participants === 1 ? 'participante' : 'participantes'} e ${totalAnswers} ${totalAnswers === 1 ? 'resposta' : 'respostas'} de todas as atividades (palavras, votos, quiz, perguntas e sorteados).\n\nAs atividades, slides e configurações continuam. O evento volta para o início, como rascunho.${live ? '\n\nATENÇÃO: o evento está AO VIVO agora. Quem está conectado vai precisar entrar de novo.' : ''}\n\nIsso não pode ser desfeito.`;
+    if (!window.confirm(msg)) return;
+    setBusy('reset');
+    const r = await api(`/api/events/${id}/control`, { method: 'POST', body: { action: 'clearEvent' } });
+    setBusy('');
+    if (!r.ok) { setErr(r.error); return; }
+    await load(sel);
+    setMsg('Evento zerado. Pronto para começar do zero.');
+    setTimeout(() => setMsg(''), 3000);
   };
   // Zera a atividade (mantém a configuração): apaga respostas, perguntas e sorteados.
   const reset = async () => {
@@ -204,6 +220,9 @@ export default function Editor() {
           <div className="row" style={{ gap: 8 }}>
             <Link className="btn btn-primary" href={`/painel/${id}/controle`}>Apresentar evento</Link>
             <Link className="btn" href={`/painel/${id}/relatorio`}>Relatório</Link>
+            <button className="btn btn-danger" onClick={resetAll} disabled={busy === 'reset' || (!totalAnswers && !participants)} title="Apaga participantes e respostas de todas as atividades. As atividades continuam.">
+              {busy === 'reset' ? 'Zerando…' : 'Zerar evento'}
+            </button>
           </div>
         </section>
 

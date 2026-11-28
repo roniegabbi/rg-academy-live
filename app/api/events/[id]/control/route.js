@@ -138,7 +138,8 @@ export async function POST(req, { params }) {
       await sql`DELETE FROM participants WHERE event_id = ${id}`;
       status = 'draft';
       goTo(0);
-      await sql`UPDATE events SET status = 'draft', started_at = NULL, ended_at = NULL WHERE id = ${id}`;
+      paused = false;
+      await sql`UPDATE events SET status = 'draft', started_at = NULL, ended_at = NULL, qr_overlay = false WHERE id = ${id}`;
       break;
     default:
       return error('Ação desconhecida.');
