@@ -47,3 +47,14 @@
 1. Ensaio de carga das reações e das curtidas com 500 pessoas.
 2. Resultado do quiz por equipes.
 3. Pergunta aberta (texto livre) com respostas em mural.
+
+## Rodada 28/11 — zerar e auditoria geral
+- Editor: "Zerar respostas" por atividade (rota DELETE /api/activities/[id]/responses) e "Zerar evento" no topo (ação clearEvent; também desliga o QR por cima).
+- Corrigido: voltar para um quiz em andamento recomeçava da pergunta 1 (todos já tinham respondido). Agora retoma da última pergunta respondida, no ranking.
+- Corrigido: dava para "revelar resposta"/"ranking" antes de iniciar a pergunta.
+- Celular: posição no quiz consultada 1x por pergunta, com atraso aleatório até 1s (antes 2x, todos no mesmo instante).
+- Carga testada: 300 entradas em 2s; 300 reações simultâneas (p95 0,7s, 0 falhas); 299 curtidas na mesma pergunta (p95 1,1s, todas contadas).
+- Conferido: um voto por pessoa na enquete é garantido pelo banco (q_index NOT NULL + índice único).
+
+### Oportunidades de interação (propostas, não feitas)
+Botão/link no celular junto do slide; escala 0–10; mural de respostas abertas; pontos de participação no evento todo; avaliação final; antes × depois; cronômetro de dinâmica; quiz por equipes.
