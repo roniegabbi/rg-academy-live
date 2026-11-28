@@ -10,17 +10,17 @@ import AiPanel from '@/components/AiPanel';
 import SortableList from '@/components/SortableList';
 
 const ADD = [
-  { kind: 'slide', label: 'Slide', desc: 'Texto, imagem ou vídeo' },
-  { kind: 'cloud', label: 'Mapa de palavras', desc: 'O público responde com palavras' },
-  { kind: 'choice', label: 'Múltipla escolha', desc: 'Gráfico ao vivo no telão' },
-  { kind: 'quiz', label: 'Quiz competitivo', desc: 'Perguntas com tempo e ranking' },
-  { kind: 'qa', label: 'Perguntas ao palestrante', desc: 'O público pergunta e curte' },
-  { kind: 'raffle', label: 'Sorteio', desc: 'Sorteia um participante no telão' },
-  { kind: 'scale', label: 'Escala de 0 a 10', desc: 'Média e distribuição ao vivo' },
-  { kind: 'wall', label: 'Mural de respostas', desc: 'Frases curtas em cartões' },
-  { kind: 'rating', label: 'Avaliação do encontro', desc: 'Estrelas e comentários' },
-  { kind: 'timer', label: 'Cronômetro', desc: 'Contagem regressiva no telão' },
-  { kind: 'leaderboard', label: 'Ranking do evento', desc: 'Pontos de participação' }
+  { kind: 'slide', icon: '🖼️', label: 'Slide', desc: 'Texto, imagem ou vídeo' },
+  { kind: 'cloud', icon: '☁️', label: 'Mapa de palavras', desc: 'O público responde com palavras' },
+  { kind: 'choice', icon: '📊', label: 'Múltipla escolha', desc: 'Gráfico ao vivo no telão' },
+  { kind: 'quiz', icon: '🏆', label: 'Quiz competitivo', desc: 'Perguntas com tempo e ranking' },
+  { kind: 'qa', icon: '💬', label: 'Perguntas ao palestrante', desc: 'O público pergunta e curte' },
+  { kind: 'raffle', icon: '🎁', label: 'Sorteio', desc: 'Sorteia um participante no telão' },
+  { kind: 'scale', icon: '🔢', label: 'Escala de 0 a 10', desc: 'Média e distribuição ao vivo' },
+  { kind: 'wall', icon: '📝', label: 'Mural de respostas', desc: 'Frases curtas em cartões' },
+  { kind: 'rating', icon: '⭐', label: 'Avaliação do encontro', desc: 'Estrelas e comentários' },
+  { kind: 'timer', icon: '⏱️', label: 'Cronômetro', desc: 'Contagem regressiva no telão' },
+  { kind: 'leaderboard', icon: '🥇', label: 'Ranking do evento', desc: 'Pontos de participação' }
 ];
 
 function autoTitle(kind, c) {
@@ -239,6 +239,27 @@ export default function Editor() {
           </div>
         </section>
 
+        {/* Barra de atividades: sempre à mão, no topo, em duas linhas. Tudo entra no final da sequência. */}
+        <section className="card stack add-bar" style={{ gap: 10 }} aria-label="Adicionar atividade">
+          <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+            <span className="eyebrow">Adicionar atividade</span>
+            <span className="hint">Entra no final da lista · arraste para mudar de lugar</span>
+          </div>
+          <div className="add-strip">
+            {ADD.map((x) => (
+              <button key={x.kind} className="add-chip" onClick={() => add(x.kind)} title={x.desc}>
+                <span className="ic" aria-hidden="true">{x.icon}</span>
+                <span className="tx"><b>{x.label}</b><small>{x.desc}</small></span>
+              </button>
+            ))}
+            <label className="add-chip" style={{ cursor: busy ? 'wait' : 'pointer' }} title="Cada página do PDF vira um slide">
+              <span className="ic" aria-hidden="true">📄</span>
+              <span className="tx"><b>Importar PDF</b><small>Cada página vira um slide</small></span>
+              <input ref={pdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} disabled={!!busy} onChange={(e) => importPdf(e.target.files[0])} />
+            </label>
+          </div>
+        </section>
+
         <div className="layout-2">
           <aside className="side card stack" style={{ gap: 8 }}>
             <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
@@ -276,18 +297,7 @@ export default function Editor() {
                 );
               }}
             />
-            {!acts.length ? <p className="muted">Nenhuma atividade. Adicione abaixo.</p> : null}
-            <span className="eyebrow" style={{ marginTop: 10 }}>Adicionar atividade</span>
-            {acts.length ? <span className="hint" style={{ marginTop: -4 }}>Entra no final da lista. Depois, arraste se quiser mudar de lugar.</span> : null}
-            <div className="add-grid">
-              {ADD.map((x) => (
-                <button key={x.kind} className="add-btn" onClick={() => add(x.kind)}><b>+ {x.label}</b><span>{x.desc}</span></button>
-              ))}
-            </div>
-            <label className="add-btn" style={{ cursor: busy ? 'wait' : 'pointer' }}>
-              <b>+ Importar apresentação em PDF</b><span>Cada página vira um slide</span>
-              <input ref={pdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} disabled={!!busy} onChange={(e) => importPdf(e.target.files[0])} />
-            </label>
+            {!acts.length ? <p className="muted">Nenhuma atividade ainda. Use a barra “Adicionar atividade” acima.</p> : null}
           </aside>
 
           <section className="main card stack" style={{ gap: 16 }}>
