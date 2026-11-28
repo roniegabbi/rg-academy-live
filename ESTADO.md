@@ -58,3 +58,15 @@
 
 ### Oportunidades de interação (propostas, não feitas)
 Botão/link no celular junto do slide; escala 0–10; mural de respostas abertas; pontos de participação no evento todo; avaliação final; antes × depois; cronômetro de dinâmica; quiz por equipes.
+
+## Rodada 28/11 (tarde) — 8 interações novas + IA
+- Novos tipos: scale (0–10), wall (mural; reaproveita a tabela questions), rating (estrelas + comentário só no relatório), timer (run: state/endsAt/left; ações timerStart/Pause/Add/Reset), leaderboard (pontos de participação: 10/resposta, 15/pergunta ou frase, + quiz).
+- Slide: linkUrl/linkLabel viram botão no celular e aviso no telão.
+- Enquete: compareWith (antes × depois, mesmas opções).
+- Quiz: teams (2–8); participants.team; rota /api/live/[pin]/team; ranking por média de pontos por integrante.
+- Sorteio: weighted (chance proporcional à participação).
+- Rotas novas: /api/live/[pin]/team, /api/live/[pin]/score.
+- IA no editor também para escala, mural, perguntas, avaliação e cronômetro.
+- Celular: se a entrada não vale mais (evento zerado), entra de novo sozinho e reenvia (liveApi/adoptToken).
+- Capa da Aula 4 corrigida ("referência").
+- Testado ponta a ponta em evento temporário (apagado).
